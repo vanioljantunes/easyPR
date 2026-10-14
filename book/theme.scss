@@ -25,11 +25,86 @@ $code-block-bg: #f6f5f1;
 
 /*-- scss:rules --*/
 
-// ---- measure -------------------------------------------------------------
+// ---- page structure ------------------------------------------------------
+// Replicated from the reference's own stylesheet (bs4_book.css), not guessed:
+//
+//   .container-fluid      { max-width: 95rem; }
+//   .container-fluid .row { justify-content: space-evenly; }
+//   .container-fluid main { max-width: 45rem; }
+//   .sidebar              { max-width: 15rem; }
+//
+// Three columns of 240 / 720 / 240 inside a centred 1520px container, with the
+// leftover space split evenly into four gaps. At a 1600px viewport that is
+// 80px before the sidebar, between each column, and after the right-hand TOC.
+// Quarto instead docks the sidebar hard against the left edge and spreads the
+// content across the full width, which is the difference that reads as missing
+// whitespace.
+//
+// Quarto places its children on named grid lines, so the line names are kept
+// exactly and only the track sizes change. The sidebars span wider tracks than
+// they occupy and are pushed to the inner edge with an auto margin, which is
+// what opens the gap outside them.
 
+@media (min-width: 1200px) {
+  #quarto-content.page-columns {
+    // 95rem in the reference, whose root font-size is 16px. Ours is 18px, so
+    // the same rem value would come out 1710px and the container would never
+    // narrow. Pin the pixels the reference actually resolves to.
+    max-width: 1520px;
+    margin-left: auto;
+    margin-right: auto;
+    grid-template-columns:
+      [screen-start] minmax(0, 1fr) 240px
+      [screen-start-inset page-start] 0px
+      [page-start-inset] 0px
+      [body-start-outset] 0px
+      [body-start] minmax(0, 1fr)
+      [body-content-start] minmax(0, 720px)
+      [body-content-end] minmax(0, 1fr)
+      [body-end] 240px minmax(0, 1fr)
+      [body-end-outset] 0px
+      [page-end-inset] 0px
+      [page-end] 0px
+      [screen-end-inset] 0px
+      [screen-end];
+  }
+
+  #quarto-sidebar {
+    max-width: 240px;
+    margin-left: auto;
+  }
+
+  #quarto-margin-sidebar {
+    max-width: 240px;
+    margin-right: auto;
+  }
+}
+
+// Both sidebars scroll independently against a full-height viewport, which is
+// where the reference gets its own scrollbar in the chapter list.
+@media (min-width: 992px) {
+  #quarto-sidebar,
+  #quarto-margin-sidebar {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
+// 15px of padding on every column, as the reference has, so the 720px main
+// column holds a 690px measure rather than running edge to edge.
 main.content,
 .page-columns .content {
   max-width: 720px;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+#quarto-sidebar,
+#quarto-margin-sidebar {
+  padding-left: 15px;
+  padding-right: 15px;
 }
 
 // ---- headings ------------------------------------------------------------
@@ -76,7 +151,9 @@ main.content {
 
 #quarto-sidebar {
   background-color: $body-bg;
-  border-right: 1px solid #ebe9e3;
+  // No divider: bs4_book separates the columns with whitespace alone, and a
+  // border here reads as a panel edge the reference does not have.
+  border-right: 0;
 
   .sidebar-title,
   .sidebar-title a {
