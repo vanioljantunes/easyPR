@@ -151,9 +151,6 @@ main.content {
 
 #quarto-sidebar {
   background-color: $body-bg;
-  // No divider: bs4_book separates the columns with whitespace alone, and a
-  // border here reads as a panel edge the reference does not have.
-  border-right: 0;
 
   .sidebar-title,
   .sidebar-title a {
@@ -187,6 +184,15 @@ main.content {
     font-weight: 500;
     color: #1b587c;
   }
+}
+
+// bs4_book separates the columns with whitespace alone. Quarto draws a divider
+// down the sidebar, from a .sidebar-navigation rule that outranks an id
+// selector here, so this needs the class and the override to land.
+body.nav-sidebar #quarto-sidebar.sidebar-navigation,
+#quarto-sidebar.sidebar-navigation,
+.sidebar-navigation {
+  border-right: 0 !important;
 }
 
 // The reference labels its chapter list. Quarto does not, so add the label
