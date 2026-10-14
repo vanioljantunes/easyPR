@@ -1,79 +1,214 @@
 /*-- scss:defaults --*/
-// Tuned to read like doing-meta.guide: a quiet sans-serif page, a docked
-// sidebar, and colour used only where it carries meaning.
+// Measured off doing-meta.guide rather than eyeballed. Every value below came
+// from getComputedStyle on the live site: body Fira Sans 18px/1.6 on #fffefa,
+// links #277db0, content column 720px, sidebar 210px, h1 40px/500, h2 24px/500,
+// code blocks #f6f5f1 with a #eee border at 3.2px radius.
 
-$font-family-sans-serif: "Source Sans Pro", -apple-system, BlinkMacSystemFont,
+$font-family-sans-serif: "Fira Sans", -apple-system, BlinkMacSystemFont,
   "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !default;
-$font-family-monospace: "Source Code Pro", SFMono-Regular, Menlo, Consolas,
+$font-family-monospace: "Roboto Mono", SFMono-Regular, Menlo, Consolas,
   monospace !default;
 
-$font-size-root: 17px;
-$line-height-base: 1.65;
+$font-size-root: 18px;
+$line-height-base: 1.6;
 
-$body-color: #23282d;
-$body-bg: #ffffff;
-$link-color: #1f6f8b;
-$link-hover-color: #15505f;
+$body-bg: #fffefa;
+$body-color: #000000;
 
-$primary: #1f6f8b;
-$code-bg: #f6f8fa;
-$code-color: #8f3f3f;
+$link-color: #277db0;
+$link-hover-color: #1b587c;
+$primary: #277db0;
+
+$code-bg: #f8f8f8;
+$code-color: #212529;
+$code-block-bg: #f6f5f1;
 
 /*-- scss:rules --*/
 
-// Measure. Long lines are the fastest way to make a methods book unreadable.
-main {
-  max-width: 44rem;
+// ---- measure -------------------------------------------------------------
+
+main.content,
+.page-columns .content {
+  max-width: 720px;
 }
 
-h1, h2, h3, h4 {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-top: 2.2rem;
-}
-h1 { font-size: 2.0rem; }
-h2 { font-size: 1.45rem; }
-h3 { font-size: 1.15rem; }
+// ---- headings ------------------------------------------------------------
+// Weight 500 throughout, not bold. The rule under each heading is what gives
+// the reference its sectioned feel, and it doubles as a slide boundary here,
+// since one H2 is one slide.
 
-// One slide per H2 is the contract with the deck pipeline, so give each H2 a
-// visible boundary. It helps the reader and it makes the mapping obvious.
-main h2 {
-  border-top: 1px solid #e6e8eb;
-  padding-top: 1.6rem;
+main.content {
+  h1, h2, h3, h4, h5 {
+    font-weight: 500;
+    color: #000;
+  }
+
+  h1 {
+    font-size: 40px;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e8e6df;
+  }
+
+  h2 {
+    font-size: 24px;
+    margin-top: 32px;
+    margin-bottom: 16px;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #e8e6df;
+  }
+
+  h3 { font-size: 20px; margin-top: 28px; }
+  h4 { font-size: 18px; }
+
+  p { font-size: 18px; line-height: 1.6; }
 }
+
+// Quarto prints the chapter number in its own span; the reference keeps it the
+// same weight and colour as the title rather than greying it out.
+.header-section-number {
+  color: inherit;
+  font-weight: 500;
+}
+
+// ---- sidebar -------------------------------------------------------------
+
+#quarto-sidebar {
+  background-color: $body-bg;
+  border-right: 1px solid #ebe9e3;
+
+  .sidebar-title,
+  .sidebar-title a {
+    font-size: 17.6px;
+    font-weight: 500;
+    color: $link-color;
+    text-decoration: none;
+  }
+
+  .subtitle,
+  .sidebar-subtitle {
+    color: #5f6b72;
+    font-weight: 400;
+  }
+
+  .sidebar-item-text,
+  .sidebar-item a {
+    font-size: 14.4px;
+    color: $link-color;
+  }
+
+  // Unnumbered front matter sits in the same list, so the number is the only
+  // thing marking a chapter. Keep it muted, as the reference does.
+  .chapter-number {
+    color: #6c757d;
+    padding-right: 0.3rem;
+  }
+
+  .sidebar-item .active,
+  .sidebar-item a.active {
+    font-weight: 500;
+    color: #1b587c;
+  }
+}
+
+// The reference labels its chapter list. Quarto does not, so add the label
+// above the first item rather than letting the list start unannounced.
+#quarto-sidebar .sidebar-menu-container::before {
+  content: "Table of contents";
+  display: block;
+  font-size: 14.4px;
+  font-weight: 500;
+  color: #000;
+  margin: 0.4rem 0 0.5rem 0;
+}
+
+// ---- search --------------------------------------------------------------
+
+#quarto-search .aa-Input,
+#quarto-search input,
+.quarto-search .aa-InputWrapper,
+.aa-Autocomplete {
+  font-size: 14.4px;
+}
+
+// ---- right-hand table of contents ---------------------------------------
+
+// Quarto 1.8 emits the right-hand TOC list as a closed bootstrap .collapse and
+// leaves JS to open it; newer Quarto does not add the class at all. The CI
+// runner installs a newer version than the one bundled with RStudio here, so
+// without this the book looks different locally than it does published. Showing
+// it on wide screens is a no-op wherever it is already open.
+@media (min-width: 992px) {
+  #quarto-margin-sidebar #TOC > ul.collapse:not(.show) {
+    display: block;
+  }
+}
+
+#quarto-margin-sidebar {
+  .sidebar-section,
+  nav[role="doc-toc"] ul > li > a,
+  .nav-link {
+    font-size: 14.4px;
+    color: $link-color;
+  }
+
+  #toc-title {
+    font-size: 14.4px;
+    font-weight: 500;
+    color: #000;
+  }
+}
+
+// ---- code ----------------------------------------------------------------
 
 pre {
-  border: 1px solid #e6e8eb;
-  border-radius: 6px;
-  padding: 0.85rem 1rem;
+  background-color: #f6f5f1;
+  border: 1px solid #eeeeee;
+  border-radius: 3.2px;
+  padding: 8px;
+  font-size: 16px;
 }
 
-// Callouts: muted, with the colour doing the signalling rather than a shout.
-div.callout {
-  border-radius: 6px;
+code:not(pre code) {
+  background-color: #f8f8f8;
+  color: #212529;
+  font-size: 15.75px;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
 }
-div.callout-note { border-left-color: #1f6f8b; }
+
+div.sourceCode {
+  background-color: #f6f5f1;
+  border-radius: 3.2px;
+}
+
+// ---- callouts ------------------------------------------------------------
+
+div.callout {
+  border-radius: 4px;
+  font-size: 17px;
+}
+div.callout-note { border-left-color: $link-color; }
 div.callout-tip { border-left-color: #2e7d57; }
 div.callout-warning { border-left-color: #b07d2b; }
 
-// The academy call to action that closes every chapter.
+// ---- the academy call to action -----------------------------------------
+
 .cta {
   margin-top: 3rem;
   padding: 1.1rem 1.25rem;
-  border: 1px solid #d9e2e6;
-  border-left: 4px solid #1f6f8b;
-  border-radius: 6px;
-  background: #f7fafb;
-  font-size: 0.96rem;
+  border: 1px solid #e3e0d8;
+  border-left: 4px solid $link-color;
+  border-radius: 4px;
+  background: #faf8f2;
+  font-size: 16.5px;
 }
 .cta p:last-child { margin-bottom: 0; }
 
-// Figure captions should read as captions, not as body text.
-figcaption, .figure-caption {
-  font-size: 0.88rem;
-  color: #5b646b;
-}
+// ---- figures -------------------------------------------------------------
 
-@media (prefers-color-scheme: dark) {
-  .cta { background: #1b2126; border-color: #2c353c; }
+figcaption, .figure-caption {
+  font-size: 15px;
+  color: #5f6b72;
 }

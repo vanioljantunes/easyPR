@@ -34,6 +34,9 @@ book:
 bibliography: references.bib
 csl: https://www.zotero.org/styles/vancouver
 
+language:
+  search-text-placeholder: "Search"
+
 format:
   html:
     theme:
@@ -47,6 +50,11 @@ format:
     code-overflow: wrap
     link-external-newwindow: true
     anchor-sections: true
+    include-in-header:
+      - text: |
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 execute:
   freeze: auto
