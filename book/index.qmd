@@ -1,0 +1,27 @@
+# Welcome {.unnumbered}
+
+A prognostic meta-analysis pools studies that estimate how well a factor, or a whole model, predicts a future outcome. The question is not whether a treatment works. It is how much knowing something today changes what you should expect tomorrow.
+
+::: {.callout-warning}
+This book is a skeleton. The seven chapters carry their final structure, which
+follows the class sequence exactly, and the prose is being written.
+:::
+
+## How this book is organised {.unnumbered .no-slide}
+
+Seven chapters, in the order you would actually do the work:
+
+| Chapter | Topic |
+|---|---|
+| 1 | What it is, goals and examples |
+| 2 | Viability, search strategy and data extraction |
+| 3 | Registering on PROSPERO |
+| 4 | Statistics theory |
+| 5 | Statistics code |
+| 6 | Checklist |
+| 7 | Writing and interpretation |
+
+Each chapter is the written half of a class, and every second-level heading is
+one slide, so the book and the deck cannot drift apart.
+
+{{< include _cta.qmd >}}

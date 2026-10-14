@@ -1,0 +1,12 @@
+# Statistics code
+
+::: {.callout-warning}
+Draft. The section structure below is fixed and matches class 4.3 of the
+Meta-Analysis Academy sequence. The prose is being written.
+:::
+
+## What this chapter covers
+
+Placeholder. One H2 is one slide, so this structure is also the deck outline.
+
+{{< include _cta.qmd >}}

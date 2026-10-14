@@ -1,0 +1,10 @@
+::: {.cta}
+**This chapter is the written half of a class.** The [Meta-Analysis
+Academy](https://metahub.metaanalysisacademy.com) course walks through the same
+material on video, with the worked example built live, the templates ready to
+fill, and somewhere to ask when your data does not look like the example.
+
+Found an error, or something explained badly? [Open an
+issue](https://github.com/vanioljantunes/easyPR/issues) - corrections are
+welcome and credited.
+:::

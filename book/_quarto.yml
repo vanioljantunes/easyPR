@@ -1,0 +1,54 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Prognostic Meta-Analysis"
+  subtitle: "A hands-on guide"
+  author: "Vanio Antunes"
+  date: today
+  date-format: "MMMM YYYY"
+  # Served from a project Pages subpath, never a domain root.
+  site-url: https://vanioljantunes.github.io/easyPR/
+  repo-url: https://github.com/vanioljantunes/easyPR
+  repo-actions: [issue]
+  search: true
+  reader-mode: true
+  page-footer:
+    left: "Prognostic Meta-Analysis, by Vanio Antunes"
+    right: "Built with Quarto"
+  sidebar:
+    style: docked
+    collapse-level: 1
+  chapters:
+    - index.qmd
+    - 01-what-is-it.qmd
+    - 02-viability.qmd
+    - 03-prospero.qmd
+    - 04-statistics-theory.qmd
+    - 05-statistics-code.qmd
+    - 06-checklist.qmd
+    - 07-writing.qmd
+    - references.qmd
+
+bibliography: references.bib
+csl: https://www.zotero.org/styles/vancouver
+
+format:
+  html:
+    theme:
+      - cosmo
+      - theme.scss
+    toc: true
+    toc-depth: 2
+    toc-title: "On this page"
+    number-sections: true
+    code-copy: true
+    code-overflow: wrap
+    link-external-newwindow: true
+    anchor-sections: true
+
+execute:
+  freeze: auto
+  echo: true
+  warning: false

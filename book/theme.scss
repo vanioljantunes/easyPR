@@ -1,0 +1,79 @@
+/*-- scss:defaults --*/
+// Tuned to read like doing-meta.guide: a quiet sans-serif page, a docked
+// sidebar, and colour used only where it carries meaning.
+
+$font-family-sans-serif: "Source Sans Pro", -apple-system, BlinkMacSystemFont,
+  "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !default;
+$font-family-monospace: "Source Code Pro", SFMono-Regular, Menlo, Consolas,
+  monospace !default;
+
+$font-size-root: 17px;
+$line-height-base: 1.65;
+
+$body-color: #23282d;
+$body-bg: #ffffff;
+$link-color: #1f6f8b;
+$link-hover-color: #15505f;
+
+$primary: #1f6f8b;
+$code-bg: #f6f8fa;
+$code-color: #8f3f3f;
+
+/*-- scss:rules --*/
+
+// Measure. Long lines are the fastest way to make a methods book unreadable.
+main {
+  max-width: 44rem;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 2.2rem;
+}
+h1 { font-size: 2.0rem; }
+h2 { font-size: 1.45rem; }
+h3 { font-size: 1.15rem; }
+
+// One slide per H2 is the contract with the deck pipeline, so give each H2 a
+// visible boundary. It helps the reader and it makes the mapping obvious.
+main h2 {
+  border-top: 1px solid #e6e8eb;
+  padding-top: 1.6rem;
+}
+
+pre {
+  border: 1px solid #e6e8eb;
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+}
+
+// Callouts: muted, with the colour doing the signalling rather than a shout.
+div.callout {
+  border-radius: 6px;
+}
+div.callout-note { border-left-color: #1f6f8b; }
+div.callout-tip { border-left-color: #2e7d57; }
+div.callout-warning { border-left-color: #b07d2b; }
+
+// The academy call to action that closes every chapter.
+.cta {
+  margin-top: 3rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid #d9e2e6;
+  border-left: 4px solid #1f6f8b;
+  border-radius: 6px;
+  background: #f7fafb;
+  font-size: 0.96rem;
+}
+.cta p:last-child { margin-bottom: 0; }
+
+// Figure captions should read as captions, not as body text.
+figcaption, .figure-caption {
+  font-size: 0.88rem;
+  color: #5b646b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cta { background: #1b2126; border-color: #2c353c; }
+}
