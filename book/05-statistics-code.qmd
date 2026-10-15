@@ -7,6 +7,7 @@ Meta-Analysis Academy sequence. The prose is being written.
 
 ## What this chapter covers
 
-Placeholder. One H2 is one slide, so this structure is also the deck outline.
+Placeholder. One H2 is one slide, so this structure is also the deck outline,
+and every section carries its own figure the way easyDR chapter 1 does.
 
 {{< include _cta.qmd >}}
