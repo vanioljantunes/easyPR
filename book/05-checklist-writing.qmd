@@ -1,0 +1,25 @@
+# Checklist, writing and interpretation
+
+What to verify before submitting, and how to report a pooled prognostic effect
+honestly once it survives that check.
+
+::: {.callout-warning}
+Draft. The section structure below is fixed and matches the class; the prose is
+being written.
+
+Every `##` section gets its own figure, as in Chapter 1. One H2 is one slide, so
+the figure is also that slide's visual, and a section without one leaves the
+deck with a blank.
+:::
+
+The checklist comes first: run it before writing a word, since every item is
+something a reviewer can check and you cannot fix after submission. The writing
+sections then say how to put the result on the page without claiming more than
+it earned. The two were separate classes until 2026-10-20.
+
+## What this chapter covers
+
+Placeholder. One H2 is one slide, so this structure is also the deck outline,
+and every section carries its own figure the way easyDR chapter 1 does.
+
+{{< include _cta.qmd >}}

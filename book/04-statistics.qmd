@@ -1,0 +1,25 @@
+# Statistics theory and code
+
+What the model is doing, in enough detail to defend it in review, and then the
+same analysis run end to end on published data you can download.
+
+::: {.callout-warning}
+Draft. The section structure below is fixed and matches the class; the prose is
+being written.
+
+Every `##` section gets its own figure, as in Chapter 1. One H2 is one slide, so
+the figure is also that slide's visual, and a section without one leaves the
+deck with a blank.
+:::
+
+Theory first, then the code that fits it. The two were separate classes until
+2026-10-20; they are one now, because nobody defends a model they have not run
+and nobody trusts a fit they cannot explain. The code sections follow the same
+order as the theory, so each fit lands next to the reason for it.
+
+## What this chapter covers
+
+Placeholder. One H2 is one slide, so this structure is also the deck outline,
+and every section carries its own figure the way easyDR chapter 1 does.
+
+{{< include _cta.qmd >}}

@@ -1,4 +1,4 @@
-# Registering on PROSPERO
+# Registering on PROSPERO and risk of bias
 
 ::: {.callout-warning}
 Draft. The section structure below is fixed and matches class 4.3 of the
@@ -9,5 +9,23 @@ Meta-Analysis Academy sequence. The prose is being written.
 
 Placeholder. One H2 is one slide, so this structure is also the deck outline,
 and every section carries its own figure the way easyDR chapter 1 does.
+
+## Why risk of bias is part of the protocol
+
+A rating scheme chosen after seeing the studies is a rating scheme chosen to get
+an answer. The protocol is the only place it costs nothing to commit.
+
+## PROBAST, and when QUIPS is the right tool instead
+
+Prognostic reviews split between model studies and single-factor studies, and
+they do not take the same instrument.
+
+## Rating a study, domain by domain
+
+Participants, predictors, outcome, and the analysis domain that fails most often.
+
+## Carrying the ratings into the analysis
+
+The pre-specified high-risk sensitivity analysis, and how the ratings feed GRADE.
 
 {{< include _cta.qmd >}}

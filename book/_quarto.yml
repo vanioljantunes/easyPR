@@ -25,10 +25,8 @@ book:
     - 01-what-is-it.qmd
     - 02-viability.qmd
     - 03-prospero.qmd
-    - 04-statistics-theory.qmd
-    - 05-statistics-code.qmd
-    - 06-checklist.qmd
-    - 07-writing.qmd
+    - 04-statistics.qmd
+    - 05-checklist-writing.qmd
     - references.qmd
 
 bibliography: references.bib
