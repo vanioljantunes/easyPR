@@ -132,8 +132,10 @@ PR_ALIAS <- list(
   effect     = c("effect", "HR", "hr", "OR", "or", "RR", "rr", "ratio",
                  "estimate", "TE"),
   effect.se  = c("effect.se", "se", "seTE", "se.HR", "se.log", "selogHR"),
-  effect.cilb = c("effect.cilb", "lower", "ci.lb", "lower95", "HR.cilb"),
-  effect.ciub = c("effect.ciub", "upper", "ci.ub", "upper95", "HR.ciub")
+  effect.cilb = c("effect.cilb", "lower", "ci.lb", "lower95", "HR.cilb",
+                  "HR.025", "OR.025", "RR.025", "lcl", "LCL", "lower.CI"),
+  effect.ciub = c("effect.ciub", "upper", "ci.ub", "upper95", "HR.ciub",
+                  "HR.975", "OR.975", "RR.975", "ucl", "UCL", "upper.CI")
 )
 
 #' Rename what the table has to what valmeta expects
@@ -193,14 +195,24 @@ pr_prepare_ratio <- function(data, studlab) {
             " row(s) are. Give the ratio itself, not its logarithm.")
   }
   yi <- log(eff)
-  se <- as.numeric(data[["effect.se"]])
-  lo <- as.numeric(data[["effect.cilb"]])
-  hi <- as.numeric(data[["effect.ciub"]])
+  col <- function(nm) {
+    v <- data[[nm]]
+    if (is.null(v) || length(v) == 0L) rep(NA_real_, nrow(data)) else as.numeric(v)
+  }
+  se <- col("effect.se")
+  lo <- col("effect.cilb")
+  hi <- col("effect.ciub")
   # a confidence interval on the ratio scale implies the standard error on
   # the log scale, which is how most papers leave it
   from_ci <- (log(hi) - log(lo)) / (2 * stats::qnorm(0.975))
-  if (is.null(se) || all(is.na(se))) se <- from_ci else
-    se[is.na(se)] <- from_ci[is.na(se)]
+  se[is.na(se)] <- from_ci[is.na(se)]
+  if (all(is.na(se))) {
+    pr_stop("every study is missing both a standard error and a confidence ",
+            "interval for the ratio, so there is nothing to weight them by. ",
+            "Recognised interval columns: ",
+            paste(c(PR_ALIAS$effect.cilb, PR_ALIAS$effect.ciub),
+                  collapse = ", "), ".")
+  }
 
   tab <- data.frame(studlab = as.character(slab), est = yi, se = se,
                     lower = log(lo), upper = log(hi),

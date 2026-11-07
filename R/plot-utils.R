@@ -96,9 +96,12 @@ pr_back <- function(x) if (isTRUE(x$log)) exp else identity
 #' @noRd
 pr_scale_x <- function(x) {
   if (isTRUE(x$log)) {
-    ggplot2::scale_x_continuous(trans = "log",
-                                breaks = scales::log_breaks(n = 6, base = exp(1)),
-                                labels = function(v) formatC(v, format = "g", digits = 2))
+    # doubling breaks, not natural-log ones: a reader of a ratio axis expects
+    # 0.5, 1, 2, 4, not 0.37, 1, 2.7, 7.4
+    ggplot2::scale_x_continuous(
+      trans = "log",
+      breaks = c(0.1, 0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64),
+      labels = function(v) formatC(v, format = "g", digits = 3))
   } else {
     ggplot2::scale_x_continuous()
   }
