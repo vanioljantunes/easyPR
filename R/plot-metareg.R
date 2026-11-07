@@ -54,7 +54,14 @@ easypr_metareg <- function(x, moderator, main = NULL, xlab = NULL, ylab = NULL,
   t <- t[ok, ]; t$mod <- as.numeric(mod[ok])
   t$w <- pr_weights(t, x$tau2)
 
-  fit <- metafor::rma(yi = t$est, sei = t$se, mods = ~ t$mod, method = "REML")
+  # The moderator is fitted from a frame of its own, under the name the
+  # reader gave it: a formula written against t$mod prints the row of the
+  # model table as "t$mod", which tells a class nothing.
+  reg <- data.frame(yi = t$est, sei = t$se, mod = t$mod)
+  names(reg)[3] <- moderator
+  fit <- metafor::rma(yi = yi, sei = sei,
+                      mods = stats::reformulate(moderator),
+                      data = reg, method = "REML")
   line <- pr_metareg_line(fit, t$mod)
 
   if (is.null(xlab)) xlab <- moderator

@@ -37,8 +37,11 @@ easypr_loo <- function(x, main = NULL, xlab = NULL, result = TRUE,
     ggplot2::annotate("rect", xmin = x$ci.lb, xmax = x$ci.ub, ymin = -Inf,
                       ymax = Inf, alpha = 0.12, fill = "#1b3a5c") +
     ggplot2::geom_vline(xintercept = x$estimate, colour = "#1b3a5c") +
+    # ggplot2 3.5 renamed the cap size of a horizontal error bar from
+    # height to width, and warns on every plot while it translates the old
+    # name, so the new one is written here.
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper),
-                            height = 0, colour = "grey45") +
+                            width = 0, colour = "grey45") +
     ggplot2::geom_point(colour = "#1b3a5c", size = 2) +
     ggplot2::labs(x = xlab, y = NULL, title = main,
                   subtitle = pr_loo_sub(x, out)) +

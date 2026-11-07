@@ -40,7 +40,7 @@ easypr_forest <- function(x, main = NULL, xlab = NULL, result = TRUE,
 
   p <- ggplot2::ggplot(t, ggplot2::aes(x = est, y = studlab)) +
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper),
-                            height = 0, colour = "grey45") +
+                            width = 0, colour = "grey45") +
     ggplot2::geom_point(ggplot2::aes(size = w), shape = 15, colour = "#1b3a5c") +
     ggplot2::scale_size_continuous(range = c(1.6, 5), guide = "none") +
     ggplot2::labs(x = xlab, y = NULL, title = main,
@@ -59,7 +59,7 @@ easypr_forest <- function(x, main = NULL, xlab = NULL, result = TRUE,
                         linewidth = 0.7)
   if (is.finite(x$pi.lb)) {
     p <- p + ggplot2::annotate("errorbarh", y = 0.35, xmin = bk(x$pi.lb),
-                               xmax = bk(x$pi.ub), height = 0.25,
+                               xmax = bk(x$pi.ub), width = 0.25,
                                colour = "#b4472a", linewidth = 0.7)
   }
   if (result) print(x)
