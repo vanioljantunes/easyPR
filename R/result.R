@@ -1,8 +1,11 @@
 #' @export
 print.easypr_result <- function(x, digits = 3, ...) {
-  cat("Pooled ", x$label, " across ", x$k, " validations (",
+  unit <- if (isTRUE(x$log)) "studies" else "validations"
+  cat("Pooled ", x$label, " across ", x$k, " ", unit, " (",
       x$method, ")\n\n", sep = "")
-  f <- function(v) formatC(v, format = "f", digits = digits)
+  # a ratio was pooled on the log scale, so it is exponentiated to print
+  b <- if (isTRUE(x$log)) exp else identity
+  f <- function(v) formatC(b(v), format = "f", digits = digits)
   cat("  estimate            ", f(x$estimate), "\n", sep = "")
   cat("  ", round(100 * x$level), "% confidence     ", f(x$ci.lb), " to ",
       f(x$ci.ub), "\n", sep = "")
@@ -10,7 +13,11 @@ print.easypr_result <- function(x, digits = 3, ...) {
     cat("  ", round(100 * x$level), "% prediction     ", f(x$pi.lb), " to ",
         f(x$pi.ub), "\n", sep = "")
   }
-  cat("  tau-squared         ", f(x$tau2), "\n", sep = "")
+  # tau-squared is a variance on the scale the pooling happened on, so it is
+  # never exponentiated even when the effect is
+  cat("  tau-squared         ",
+      formatC(x$tau2, format = "f", digits = digits),
+      if (isTRUE(x$log)) "  (log scale)" else "", "\n", sep = "")
   cat("  I-squared           ", formatC(x$I2, format = "f", digits = 1),
       "%\n\n", sep = "")
   cat(strwrap(pr_reading(x), width = 76), sep = "\n")
@@ -33,13 +40,16 @@ pr_reading <- function(x) {
                   "about the next hospital."))
   }
   wide <- (x$pi.ub - x$pi.lb) > 2 * (x$ci.ub - x$ci.lb)
-  base <- paste0("The confidence interval is about the average performance. ",
+  what <- if (isTRUE(x$log)) "effect" else "performance"
+  base <- paste0("The confidence interval is about the average ", what, ". ",
                  "The prediction interval is what a new validation should ",
                  "expect, and it is the one to quote.")
   if (!wide) return(base)
-  paste0(base, " Here it is much the wider of the two, so the model's ",
-         "performance is not settled: where it is next validated matters ",
-         "as much as the model.")
+  tail <- if (isTRUE(x$log))
+    " Here it is much the wider of the two, so the effect is not settled: where the next study is run matters as much as the factor."
+  else
+    " Here it is much the wider of the two, so the model's performance is not settled: where it is next validated matters as much as the model."
+  paste0(base, tail)
 }
 
 #' @export
@@ -51,13 +61,15 @@ summary.easypr_result <- function(object, ...) {
 #' @export
 print.summary.easypr_result <- function(x, digits = 3, ...) {
   print(x$result, digits = digits)
-  cat("\n\nPer validation\n\n")
+  cat("\n\nPer ", if (isTRUE(x$result$log)) "study" else "validation",
+      "\n\n", sep = "")
   t <- x$table
+  bb <- if (isTRUE(x$result$log)) exp else identity
   out <- data.frame(
     Study = t$studlab,
-    Estimate = formatC(t$est, format = "f", digits = digits),
-    `95% CI` = paste0(formatC(t$lower, format = "f", digits = digits), " to ",
-                      formatC(t$upper, format = "f", digits = digits)),
+    Estimate = formatC(bb(t$est), format = "f", digits = digits),
+    `95% CI` = paste0(formatC(bb(t$lower), format = "f", digits = digits), " to ",
+                      formatC(bb(t$upper), format = "f", digits = digits)),
     Weight = paste0(formatC(100 * pr_weights(t), format = "f", digits = 1), "%"),
     check.names = FALSE
   )

@@ -36,10 +36,26 @@ performance has two halves that can disagree.
 |:---|:---|:---|
 | c-statistic | Does the model rank patients correctly? | `"cstat"` |
 | O:E ratio | Are the risks it quotes the risks that happen? | `"OE"` |
+| hazard, odds or risk ratio | How much does one factor shift risk? | `"ratio"` |
 
 A model can rank well and still be badly calibrated. A review that reports
 only the first has quietly left out whether the numbers mean anything, so
 `easypr()` makes you name which one you are pooling.
+
+The third measure is the other half of the field. Not every prognostic
+review validates a whole model; many pool what a single factor does to risk.
+That is a ratio, pooled on the log scale and read on the ratio scale, and
+easyPR does the transforming so the printed table and the plot axis both
+come back in the units you reported.
+
+```r
+easypr(cohorts, measure = "ratio")   # reads an HR, OR or RR column
+#> Pooled hazard ratio across 9 studies (REML)
+#>   estimate            1.637
+#>   95% confidence     1.428 to 1.876
+#>   95% prediction     1.280 to 2.094
+#>   tau-squared         0.011  (log scale)
+```
 
 Estimation is delegated to **{metamisc}** (Debray and de Jong), which easyPR
 calls and never second-guesses.

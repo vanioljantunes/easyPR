@@ -78,3 +78,37 @@ pr_unique_labels <- function(x) {
   }
   x
 }
+
+
+#' Back-transform for display, and the matching axis
+#'
+#' The ratio measure is pooled on the log scale, which is where a symmetric
+#' interval belongs, but nobody reads a log hazard ratio off a plot. Every
+#' figure therefore exponentiates the values it draws and puts the axis on a
+#' log scale, so the spacing stays the pooling's and the labels stay the
+#' reader's.
+#'
+#' @keywords internal
+#' @noRd
+pr_back <- function(x) if (isTRUE(x$log)) exp else identity
+
+#' @keywords internal
+#' @noRd
+pr_scale_x <- function(x) {
+  if (isTRUE(x$log)) {
+    ggplot2::scale_x_continuous(trans = "log",
+                                breaks = scales::log_breaks(n = 6, base = exp(1)),
+                                labels = function(v) formatC(v, format = "g", digits = 2))
+  } else {
+    ggplot2::scale_x_continuous()
+  }
+}
+
+#' Where the null sits, if there is one
+#' @keywords internal
+#' @noRd
+pr_null_at <- function(x) {
+  if (isTRUE(x$log)) return(1)
+  if (identical(x$measure, "OE")) return(1)
+  NA_real_
+}

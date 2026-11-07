@@ -30,9 +30,13 @@ easypr_forest <- function(x, main = NULL, xlab = NULL, result = TRUE,
   t$studlab <- factor(pr_unique_labels(t$studlab),
                       levels = pr_unique_labels(t$studlab))
 
+  bk <- pr_back(x)
+  for (cl in c("est", "lower", "upper")) t[[cl]] <- bk(t[[cl]])
   if (is.null(xlab)) xlab <- x$label
-  if (is.null(main)) main <- paste0("Validations of the model, ", x$label)
-  null_at <- if (x$measure == "OE") 1 else NA_real_
+  if (is.null(main)) main <- if (isTRUE(x$log))
+    paste0("Studies of the factor, ", x$label) else
+    paste0("Validations of the model, ", x$label)
+  null_at <- pr_null_at(x)
 
   p <- ggplot2::ggplot(t, ggplot2::aes(x = est, y = studlab)) +
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower, xmax = upper),
@@ -41,6 +45,7 @@ easypr_forest <- function(x, main = NULL, xlab = NULL, result = TRUE,
     ggplot2::scale_size_continuous(range = c(1.6, 5), guide = "none") +
     ggplot2::labs(x = xlab, y = NULL, title = main,
                   subtitle = pr_sub(x)) +
+    pr_scale_x(x) +
     pr_theme()
   if (is.finite(null_at)) {
     p <- p + ggplot2::geom_vline(xintercept = null_at, linetype = 2,
@@ -48,13 +53,13 @@ easypr_forest <- function(x, main = NULL, xlab = NULL, result = TRUE,
   }
   # the pooled estimate and, wider, what the next validation should expect
   p <- p +
-    ggplot2::annotate("rect", xmin = x$ci.lb, xmax = x$ci.ub,
+    ggplot2::annotate("rect", xmin = bk(x$ci.lb), xmax = bk(x$ci.ub),
                       ymin = -Inf, ymax = Inf, alpha = 0.12, fill = "#1b3a5c") +
-    ggplot2::geom_vline(xintercept = x$estimate, colour = "#1b3a5c",
+    ggplot2::geom_vline(xintercept = bk(x$estimate), colour = "#1b3a5c",
                         linewidth = 0.7)
   if (is.finite(x$pi.lb)) {
-    p <- p + ggplot2::annotate("errorbarh", y = 0.35, xmin = x$pi.lb,
-                               xmax = x$pi.ub, height = 0.25,
+    p <- p + ggplot2::annotate("errorbarh", y = 0.35, xmin = bk(x$pi.lb),
+                               xmax = bk(x$pi.ub), height = 0.25,
                                colour = "#b4472a", linewidth = 0.7)
   }
   if (result) print(x)
@@ -68,9 +73,11 @@ easypr_forest <- function(x, main = NULL, xlab = NULL, result = TRUE,
 #' @keywords internal
 #' @noRd
 pr_sub <- function(x) {
-  s <- sprintf("Pooled %.3f (95%% CI %.3f to %.3f)", x$estimate, x$ci.lb, x$ci.ub)
+  b <- pr_back(x)
+  s <- sprintf("Pooled %.3f (95%% CI %.3f to %.3f)", b(x$estimate),
+               b(x$ci.lb), b(x$ci.ub))
   if (is.finite(x$pi.lb)) {
-    s <- paste0(s, sprintf("; 95%% prediction %.3f to %.3f", x$pi.lb, x$pi.ub))
+    s <- paste0(s, sprintf("; 95%% prediction %.3f to %.3f", b(x$pi.lb), b(x$pi.ub)))
   }
   paste0(s, sprintf("; I2 = %.0f%%", x$I2))
 }

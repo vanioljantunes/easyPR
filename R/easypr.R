@@ -42,7 +42,7 @@
 #' fit
 #' }
 #' @export
-easypr <- function(data, measure = c("cstat", "OE"), studlab = NULL,
+easypr <- function(data, measure = c("cstat", "OE", "ratio"), studlab = NULL,
                    method = "REML", level = 0.95, ...) {
   measure <- match.arg(measure)
   if (!is.numeric(level) || length(level) != 1L || level <= 0 || level >= 1) {
@@ -56,6 +56,12 @@ easypr <- function(data, measure = c("cstat", "OE"), studlab = NULL,
   # valmeta takes the reported columns, not a pre-computed estimate: it does
   # its own reconciling internally and the argument names are the column
   # names, so the call is assembled from whichever ones `data` actually has.
+  if (measure == "ratio") {
+    fit <- metafor::rma(yi = tab$est, sei = tab$se, method = method,
+                        slab = tab$studlab, ...)
+    return(pr_result_ratio(fit, tab, method, level, data))
+  }
+
   data <- pr_map(data, measure, quiet = TRUE)
   have <- intersect(PR_COLS[[measure]], names(data))
   args <- c(list(measure = measure, data = data, method = method, slab = slab),
@@ -115,4 +121,36 @@ pr_i2 <- function(est, se, tau2) {
   s2 <- (k - 1) * sum(w) / (sum(w)^2 - sum(w^2))
   v  <- 100 * tau2 / (tau2 + s2)
   max(0, min(100, v))
+}
+
+
+#' The ratio measure's result, back on the ratio scale
+#'
+#' Everything downstream works on the log scale, because that is where the
+#' pooling happens and where a symmetric interval belongs. Only the printed
+#' numbers are exponentiated, and the `log` flag tells the plots to label a
+#' ratio axis rather than a difference one.
+#'
+#' @keywords internal
+#' @noRd
+`%||%` <- function(a, b) if (is.null(a) || is.na(a)) b else a
+
+#' @keywords internal
+#' @noRd
+pr_result_ratio <- function(fit, tab, method, level, data) {
+  z  <- stats::qnorm(1 - (1 - level) / 2)
+  mu <- as.numeric(fit$b)
+  pse <- sqrt(as.numeric(fit$tau2) + as.numeric(fit$se)^2)
+  structure(list(
+    measure  = "ratio",
+    label    = attr(tab, "effect_label") %||% "ratio",
+    log      = TRUE,
+    method   = method,
+    level    = level,
+    k        = nrow(tab),
+    estimate = mu, ci.lb = fit$ci.lb, ci.ub = fit$ci.ub,
+    pi.lb    = mu - z * pse, pi.ub = mu + z * pse,
+    tau2     = as.numeric(fit$tau2), I2 = as.numeric(fit$I2),
+    table    = tab, fit = fit, data = data
+  ), class = "easypr_result")
 }

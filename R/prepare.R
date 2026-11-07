@@ -23,7 +23,8 @@ PR_COLS <- list(
   cstat = c("cstat", "cstat.se", "cstat.cilb", "cstat.ciub", "N", "O", "E",
             "sd.LP"),
   OE    = c("OE", "OE.se", "OE.cilb", "OE.ciub", "N", "O", "E", "Po", "Pe",
-            "citl", "citl.se")
+            "citl", "citl.se"),
+  ratio = c("effect", "effect.se", "effect.cilb", "effect.ciub")
 )
 
 #' Build the per-study table for one measure
@@ -35,8 +36,9 @@ PR_COLS <- list(
 #' @noRd
 pr_prepare <- function(data, measure, studlab = NULL) {
   if (!is.data.frame(data)) pr_stop("`data` must be a data frame of validations.")
-  measure <- match.arg(measure, c("cstat", "OE"))
+  measure <- match.arg(measure, c("cstat", "OE", "ratio"))
   data <- pr_map(data, measure)
+  if (measure == "ratio") return(pr_prepare_ratio(data, studlab))
 
   have <- intersect(PR_COLS[[measure]], names(data))
   if (length(have) == 0L) {
@@ -126,7 +128,12 @@ PR_ALIAS <- list(
   Pe         = c("Pe", "pe", "prop.expected"),
   citl       = c("citl", "CITL"),
   citl.se    = c("citl.se", "se.citl"),
-  sd.LP      = c("sd.LP", "sdLP", "sd.lp")
+  sd.LP      = c("sd.LP", "sdLP", "sd.lp"),
+  effect     = c("effect", "HR", "hr", "OR", "or", "RR", "rr", "ratio",
+                 "estimate", "TE"),
+  effect.se  = c("effect.se", "se", "seTE", "se.HR", "se.log", "selogHR"),
+  effect.cilb = c("effect.cilb", "lower", "ci.lb", "lower95", "HR.cilb"),
+  effect.ciub = c("effect.ciub", "upper", "ci.ub", "upper95", "HR.ciub")
 )
 
 #' Rename what the table has to what valmeta expects
@@ -155,4 +162,56 @@ pr_map <- function(data, measure, quiet = FALSE) {
   }
   attr(data, "pr_found") <- found
   data
+}
+
+
+# A prognostic factor rather than a model.
+#
+# The other half of a prognostic review pools what one factor does to risk:
+# a hazard ratio, or an odds or risk ratio. Those are pooled on the log
+# scale and reported back on the ratio scale, which is the step most often
+# got wrong when it is done by hand, so easyPR does it and says so.
+
+#' @keywords internal
+#' @noRd
+pr_prepare_ratio <- function(data, studlab) {
+  slab <- pr_slab(data, studlab)
+  # the column it was read from names the measure, so a hazard ratio is
+  # labelled a hazard ratio rather than "ratio"
+  src  <- attr(data, "pr_found")[["effect"]]
+  nm   <- c(HR = "hazard ratio", hr = "hazard ratio", OR = "odds ratio",
+            or = "odds ratio", RR = "risk ratio", rr = "risk ratio")[src]
+  if (is.na(nm) || is.null(nm)) nm <- "ratio"
+  eff  <- as.numeric(data[["effect"]])
+  if (all(is.na(eff))) {
+    pr_stop("measure = \"ratio\" needs an `effect` column holding the hazard, ",
+            "odds or risk ratio. Recognised spellings: ",
+            paste(PR_ALIAS$effect, collapse = ", "), ".")
+  }
+  if (any(eff <= 0, na.rm = TRUE)) {
+    pr_stop("a ratio cannot be zero or negative, and ", sum(eff <= 0, na.rm = TRUE),
+            " row(s) are. Give the ratio itself, not its logarithm.")
+  }
+  yi <- log(eff)
+  se <- as.numeric(data[["effect.se"]])
+  lo <- as.numeric(data[["effect.cilb"]])
+  hi <- as.numeric(data[["effect.ciub"]])
+  # a confidence interval on the ratio scale implies the standard error on
+  # the log scale, which is how most papers leave it
+  from_ci <- (log(hi) - log(lo)) / (2 * stats::qnorm(0.975))
+  if (is.null(se) || all(is.na(se))) se <- from_ci else
+    se[is.na(se)] <- from_ci[is.na(se)]
+
+  tab <- data.frame(studlab = as.character(slab), est = yi, se = se,
+                    lower = log(lo), upper = log(hi),
+                    stringsAsFactors = FALSE)
+  tab$lower[is.na(tab$lower)] <- tab$est[is.na(tab$lower)] - 1.96 * tab$se[is.na(tab$lower)]
+  tab$upper[is.na(tab$upper)] <- tab$est[is.na(tab$upper)] + 1.96 * tab$se[is.na(tab$upper)]
+  usable <- is.finite(tab$est) & is.finite(tab$se) & tab$se > 0
+  if (!any(usable)) {
+    pr_stop("no study has both a ratio and something to get its standard ",
+            "error from.")
+  }
+  attr(tab, "effect_label") <- unname(nm)
+  tab[usable, , drop = FALSE]
 }
