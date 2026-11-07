@@ -14,7 +14,15 @@
 
 #' @keywords internal
 #' @noRd
-pr_stop <- function(...) stop("easypr: ", ..., call. = FALSE)
+pr_stop <- function(...) {
+  # An error message is read on a console, and sometimes photographed for a
+  # slide, so it is wrapped at the width the rest of the output uses rather
+  # than running off the right of the window as one line.
+  msg <- paste0("easypr: ", paste0(..., collapse = ""))
+  stop(paste(strwrap(msg, width = 72, exdent = 2), collapse = "
+"),
+       call. = FALSE)
+}
 
 #' Columns of `data` that a measure can be built from
 #' @keywords internal
