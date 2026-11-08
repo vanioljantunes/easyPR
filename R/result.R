@@ -9,7 +9,7 @@ print.easypr_result <- function(x, digits = 3, ...) {
   # place the reader's scale is restored
   b <- pr_bwd(x$scale)
   f <- function(v) formatC(b(v), format = "f", digits = digits)
-  pad <- function(s) formatC(s, width = -20)
+  pad <- function(s) formatC(s, width = -25)
   cat("  ", pad(x$unit), f(x$estimate), "\n", sep = "")
   cat("  ", pad(paste0(round(100 * x$level), "% confidence")),
       f(x$ci.lb), " to ", f(x$ci.ub), "\n", sep = "")
@@ -28,9 +28,7 @@ print.easypr_result <- function(x, digits = 3, ...) {
       "  (", x$scale, " scale)\n", sep = "")
   cat("  ", pad("I-squared"), formatC(x$I2, format = "f", digits = 1),
       "%\n", sep = "")
-  cat("  ", pad("test of effect"), x$test$name, " = ",
-      formatC(x$test$stat, format = "f", digits = 2), ", ",
-      pr_p_lab(x$test$p), "\n\n", sep = "")
+  cat("  ", pad("test for overall effect"), pr_p_lab(x$test$p), "\n\n", sep = "")
   cat(strwrap(pr_reading(x), width = 76), sep = "\n")
   invisible(x)
 }

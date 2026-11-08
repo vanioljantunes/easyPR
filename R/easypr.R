@@ -53,8 +53,8 @@
 #' @examples
 #' \donttest{
 #' data(EuroSCORE, package = "metamisc")
-#' fit <- easypr(EuroSCORE, sm = "cstat")
-#' fit
+#' easypr.object.cstat <- easypr(EuroSCORE, sm = "cstat")
+#' easypr.object.cstat
 #' }
 #' @export
 easypr <- function(data,

@@ -41,7 +41,7 @@ fit &lt;- <span class="f">metagen</span>(<span class="a">TE</span> = logHR, <spa
       <div>
         <h3>What easyPR asks</h3>
 <pre class="code"><span class="c"># name the measure the studies reported</span>
-fit &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
+easypr.object.hr &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
               <span class="a">sm</span> = <span class="s">"HR"</span>,
               <span class="a">method</span> = <span class="s">"Inverse"</span>,
               <span class="a">method.tau</span> = <span class="s">"REML"</span>)</pre>
@@ -161,7 +161,7 @@ fit &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
           a variance on the pooling scale and never travels back with the
           effect.
         </p>
-<pre class="code">fit &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
+<pre class="code">easypr.object.hr &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
               <span class="a">method.tau</span> = <span class="s">"REML"</span>,
               <span class="a">sm</span> = <span class="s">"HR"</span>,
               <span class="a">method</span> = <span class="s">"Inverse"</span>)
@@ -176,12 +176,12 @@ Pooled hazard ratio across 20 studies
 Pooling: inverse variance, random effects, REML,
 Knapp-Hartung interval.
 
-  HR                  2.013
-  95% confidence      1.591 to 2.547
-<span class="hl">  95% prediction      1.106 to 3.665</span>
-  tau-squared         0.081  (log scale)
-  I-squared           42.9%
-  test of effect      t = 6.23, p &lt; 0.001
+  HR                       2.013
+  95% confidence           1.591 to 2.547
+<span class="hl">  95% prediction           1.106 to 3.665</span>
+  tau-squared              0.081  (log scale)
+  I-squared                42.9%
+  test for overall effect  p &lt; 0.001
 
 The confidence interval is about the average effect.
 The prediction interval is what a new study should

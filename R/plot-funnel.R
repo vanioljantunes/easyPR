@@ -80,11 +80,8 @@ pr_funnel_table <- function(x, t, ft) {
     check.names = FALSE,
     `Studies`   = nrow(t),
     `Pooled`    = formatC(b(x$estimate), format = "f", digits = 3),
-    `Smallest SE` = formatC(min(t$se, na.rm = TRUE), format = "f", digits = 3),
-    `Largest SE`  = formatC(max(t$se, na.rm = TRUE), format = "f", digits = 3),
-    `Test`      = if (is.null(ft)) "not estimable" else "Egger, fixed variance",
     `Statistic` = if (is.null(ft)) "" else formatC(g("tval"), format = "f", digits = 2),
-    `p`         = if (is.null(ft)) "" else pr_p(g("pval")),
+    `Egger test p` = if (is.null(ft)) "not estimable" else pr_p(g("pval")),
     stringsAsFactors = FALSE)
 }
 

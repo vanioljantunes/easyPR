@@ -43,8 +43,8 @@
 #' @examples
 #' \donttest{
 #' data(EuroSCORE, package = "metamisc")
-#' fit <- easypr(EuroSCORE, sm = "cstat")
-#' easypr_forest(fit)
+#' easypr.object.cstat <- easypr(EuroSCORE, sm = "cstat")
+#' easypr_forest(easypr.object.cstat)
 #' }
 #' @export
 easypr_forest <- function(x, label.e = NULL, label.c = NULL,
@@ -53,7 +53,7 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
                           order = c("data", "effect", "weight", "study"),
                           columns = TRUE, prediction = TRUE, digits = 3,
                           legend = NULL, row.height = 0.26,
-                          effect.width = 3.1, result = TRUE,
+                          effect.width = 3.6, result = TRUE,
                           filetype = c("png", "pdf", "tiff"),
                           path = NULL, file.name = NULL,
                           width = NULL, height = NULL) {
@@ -87,14 +87,14 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
     mk("study", tab$studlab, "plain", tab$est, tab$lower, tab$upper,
        tab$weight),
     mk("pooled", "Pooled", "bold", x$estimate, x$ci.lb, x$ci.ub, 100))
-  if (has_pi) plan <- rbind(plan, mk("pred", "", "plain"))
+  if (has_pi) plan <- rbind(plan, mk("pred", "Prediction interval", "bold"))
 
   n        <- nrow(plan)
   plan$y   <- rev(seq_len(n))
   header_y <- n + 1
   span_y   <- n + 2
   note_y   <- c(0, -1)
-  ylim     <- c(min(note_y) - 1.9, span_y + 1.5)
+  ylim     <- c(min(note_y) - 0.8, span_y + 1.5)
   is_study <- plan$kind == "study"
   zebra    <- pr_zebra(plan$y[is_study])
 
@@ -111,22 +111,16 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
   }
   val_cols <- list(x = est_txt, y = ci_txt, Weight = wt_txt)
   names(val_cols)[1:2] <- c(x$unit, paste0(lvl, "% CI"))
-  # Only the prediction row is red, and only in the interval column.
-  pred_col <- rep("black", n)
-  if (has_pi) pred_col[plan$kind == "pred"] <- "#b4472a"
-  val_colour <- list(NULL, pred_col, NULL)
 
-  lab <- pr_forest_columns(x, tab, plan, columns, label.e, label.c)
+  lab <- pr_forest_columns(x, tab, plan, columns)
 
   notes <- list(
     list(y = note_y[1], label = pr_effect_test(x)),
     list(y = note_y[2], label = pr_het_line(x)))
 
   out <- pr_forest_draw(
-    plan = plan, lab_cols = lab$cols, lab_right = lab$right,
-    spans = lab$spans, span_y = span_y,
-    val_cols = val_cols, val_right = c(TRUE, TRUE, TRUE),
-    val_colour = val_colour,
+    plan = plan, lab_cols = lab$cols, lab_just = lab$just, span_y = span_y,
+    val_cols = val_cols, val_just = "center", val_colour = NULL,
     x = x, xlab = xlab, xlim = xlim, prediction = has_pi,
     label.e = label.e, label.c = label.c, direction = direction,
     header_y = header_y, ylim = ylim, zebra = zebra, notes = notes,
@@ -165,19 +159,18 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
 #'
 #' @keywords internal
 #' @noRd
-pr_forest_draw <- function(plan, lab_cols, lab_right, spans, span_y,
-                           val_cols, val_right, val_colour, x, xlab, xlim,
+pr_forest_draw <- function(plan, lab_cols, lab_just, span_y,
+                           val_cols, val_just, val_colour, x, xlab, xlim,
                            prediction, label.e, label.c, direction,
                            header_y, ylim, zebra, notes, row.height,
                            effect.width, main, legend,
                            filetype, path, file.name, width, height) {
   p_labels <- pr_text_panel(
-    lab_cols, lab_right, ypos = plan$y, face = plan$face,
-    header_y = header_y, ylim = ylim, zebra = zebra, notes = notes,
-    spans = spans, span_y = span_y)
+    lab_cols, lab_just, ypos = plan$y, face = plan$face,
+    header_y = header_y, ylim = ylim, zebra = zebra, notes = notes)
 
   p_values <- pr_text_panel(
-    val_cols, val_right, ypos = plan$y, face = plan$face,
+    val_cols, val_just, ypos = plan$y, face = plan$face,
     header_y = header_y, ylim = ylim, zebra = zebra, colour = val_colour)
 
   fwd     <- pr_fwd(x$scale)
@@ -238,42 +231,35 @@ pr_forest_draw <- function(plan, lab_cols, lab_right, spans, span_y,
                         yy = d$y + c(0, 0.34, 0, -0.34)),
       ggplot2::aes(x = .data$xx, y = .data$yy), fill = "black")
   }
-  if (isTRUE(prediction) && nrow(diamonds) > 0L) {
-    dy <- diamonds$y[nrow(diamonds)]
+  pred_row <- plan[plan$kind == "pred", , drop = FALSE]
+  if (isTRUE(prediction) && nrow(pred_row) > 0L) {
+    py <- pred_row$y[1]
     p <- p +
-      ggplot2::annotate("segment", y = dy, yend = dy,
-                        x = x$pi.lb, xend = x$pi.ub,
-                        colour = "#b4472a", linewidth = 0.7) +
-      ggplot2::annotate("point", y = c(dy, dy), x = c(x$pi.lb, x$pi.ub),
-                        shape = 124, colour = "#b4472a", size = 2.4)
+      ggplot2::annotate("segment", y = py, yend = py,
+                        x = x$pi.lb, xend = x$pi.ub, linewidth = 0.7) +
+      ggplot2::annotate("point", y = c(py, py), x = c(x$pi.lb, x$pi.ub),
+                        shape = 124, size = 2.4)
   }
 
   # Centred over the scale: how the interval was built, how the between-study
   # variance was estimated, and what is being pooled.
-  p <- p + ggplot2::annotate("text", x = (lo + hi) / 2, y = span_y + 1,
-                             label = pr_method_line(x), size = 3.0,
-                             colour = "grey25")
+  p <- p + ggplot2::annotate("text", x = (lo + hi) / 2, y = span_y + 0.6,
+                             label = pr_method_line(x), size = 10 / 2.845,
+                             colour = "black", lineheight = 0.95)
 
-  # The two sides of the axis, named after the groups, then the outcome
-  # itself in bold underneath.
-  fav <- pr_favours(label.e, label.c, direction)
-  if (!is.null(fav)) {
-    p <- p +
-      ggplot2::annotate("text", x = lo, y = ylim[1] + 0.4, label = fav$left,
-                        hjust = 0, size = 2.9, colour = "grey25") +
-      ggplot2::annotate("text", x = hi, y = ylim[1] + 0.4, label = fav$right,
-                        hjust = 1, size = 2.9, colour = "grey25")
-  }
-
+  fav   <- pr_favours(label.e, label.c, direction)
   ticks <- pr_ticks(lo, hi, x$scale)
   keep  <- ticks$at >= lo & ticks$at <= hi
   if (is.null(xlab)) xlab <- x$label
+  # The favours labels and the outcome name are one block, drawn under the
+  # panels rather than by the axis, so they share an ink and a size and the
+  # favours line can sit between the tick labels and the outcome.
+  axis_blk <- pr_axis_grob(xlab, fav)
   p_effect <- p +
     ggplot2::scale_x_continuous(breaks = ticks$at[keep],
                                 labels = ticks$labels[keep]) +
     ggplot2::coord_cartesian(xlim = c(lo, hi), ylim = ylim, clip = "off") +
-    ggplot2::labs(x = xlab) +
-    pr_gg_theme(axis = TRUE, title_face = "bold")
+    pr_gg_theme(axis = TRUE, title = FALSE)
 
   if (identical(main, FALSE)) main <- NULL
   lab_w <- pr_panel_width(lab_cols)
@@ -281,7 +267,7 @@ pr_forest_draw <- function(plan, lab_cols, lab_right, spans, span_y,
   # The labels panel is added last so that it is drawn last. A note is wider
   # than the column it starts in, and whichever panel is drawn after it
   # covers the overflow with its own background.
-  body <- gridExtra::arrangeGrob(
+  panels <- gridExtra::arrangeGrob(
     grobs = list(p_effect, p_values, p_labels),
     layout_matrix = matrix(c(3L, 1L, 2L), nrow = 1L),
     widths = grid::unit.c(grid::unit(lab_w, "inches"),
@@ -289,8 +275,24 @@ pr_forest_draw <- function(plan, lab_cols, lab_right, spans, span_y,
                           grid::unit(val_w, "inches")),
     padding = grid::unit(0, "line"))
 
-  body_h <- grid::unit((ylim[2] - ylim[1]) * row.height, "inches") +
+  panels_h <- grid::unit((ylim[2] - ylim[1]) * row.height, "inches") +
     grid::unit(0.52, "inches")
+  if (is.null(axis_blk)) {
+    body <- panels
+    body_h <- panels_h
+  } else {
+    # The axis block is as wide as the effect panel and sits under it.
+    axis_row <- gridExtra::arrangeGrob(
+      grobs = list(grid::nullGrob(), axis_blk$grob, grid::nullGrob()),
+      nrow = 1L,
+      widths = grid::unit.c(grid::unit(lab_w, "inches"),
+                            grid::unit(effect.width, "inches"),
+                            grid::unit(val_w, "inches")))
+    body <- gridExtra::arrangeGrob(
+      grobs = list(panels, axis_row), ncol = 1L,
+      heights = grid::unit.c(panels_h, axis_blk$height))
+    body_h <- panels_h + axis_blk$height
+  }
   if (identical(legend, FALSE)) legend <- NULL
   total_w <- lab_w + effect.width + val_w
   if (!is.null(legend)) {
@@ -309,7 +311,7 @@ pr_forest_draw <- function(plan, lab_cols, lab_right, spans, span_y,
   g <- pr_draw_stack(body, body_h, title = main, footer = legend,
                      body_w = grid::unit(total_w, "inches"))
   list(grob = g, width = total_w,
-       height = (ylim[2] - ylim[1]) * row.height + 0.52 + title_in + foot_in)
+       height = pr_height_in(body_h) + title_in + foot_in)
 }
 
 #' The columns the labels panel carries, and the groups that head them
@@ -321,36 +323,27 @@ pr_forest_draw <- function(plan, lab_cols, lab_right, spans, span_y,
 #'
 #' @keywords internal
 #' @noRd
-pr_forest_columns <- function(x, tab, plan, columns, label.e, label.c) {
+pr_forest_columns <- function(x, tab, plan, columns) {
   cols <- list(Study = plan$label)
   if (isFALSE(columns)) {
-    return(list(cols = cols, right = FALSE, spans = NULL))
+    return(list(cols = cols, just = "left"))
   }
   want <- names(x$columns)
   if (is.character(columns)) want <- intersect(want, columns)
-  side <- character(0)
   for (nm in want) {
     if (!nm %in% names(tab)) next
     v <- tab[[nm]]
     if (!any(is.finite(v))) next
-    pad <- rep("", nrow(plan) - nrow(tab))
-    cols[[nm]] <- c(ifelse(is.finite(v), format(v, big.mark = ","), ""), pad)
-    side <- c(side, nm)
-  }
-  spans <- NULL
-  if (length(side) > 0L && (!is.null(label.e) || !is.null(label.c))) {
-    idx <- seq_along(side) + 1L
-    if (length(side) >= 2L && !is.null(label.e) && !is.null(label.c)) {
-      half  <- ceiling(length(idx) / 2)
-      spans <- list(list(cols = idx[seq_len(half)], label = label.e),
-                    list(cols = idx[-seq_len(half)], label = label.c))
-    } else {
-      spans <- list(list(cols = idx,
-                         label = if (is.null(label.e)) label.c else label.e))
+    # A column of counts is totalled on the summary row, the way {meta}
+    # totals the events and the sample size.
+    body <- ifelse(is.finite(v), format(v, big.mark = ","), "")
+    tail <- rep("", nrow(plan) - nrow(tab))
+    if (length(tail) > 0L) {
+      tail[1] <- format(sum(v, na.rm = TRUE), big.mark = ",")
     }
+    cols[[nm]] <- c(body, tail)
   }
-  list(cols = cols, right = c(FALSE, rep(TRUE, length(cols) - 1L)),
-       spans = spans)
+  list(cols = cols, just = c("left", rep("center", length(cols) - 1L)))
 }
 
 #' Which group each side of the axis favours
@@ -376,18 +369,17 @@ pr_favours <- function(label.e, label.c, direction) {
 #' @keywords internal
 #' @noRd
 pr_method_line <- function(x) {
-  ci <- if (identical(x$method.ci, "t")) "Knapp-Hartung" else "normal"
-  paste0(ci, " interval, tau-squared by ", x$method.tau, ", sm = ", x$sm)
+  ci <- if (identical(x$method.ci, "t")) "Knapp-Hartung interval"
+        else "normal interval"
+  paste0(x$method, ", ", ci, ",\n", x$method.tau, ", ", x$sm)
 }
 
 #' The test of the pooled effect, written under it
 #' @keywords internal
 #' @noRd
 pr_effect_test <- function(x) {
-  if (is.null(x$test) || !is.finite(x$test$stat)) return("")
-  paste0("Test of the pooled effect: ", x$test$name, " = ",
-         formatC(x$test$stat, format = "f", digits = 2), ", ",
-         pr_p_lab(x$test$p))
+  if (is.null(x$test) || !is.finite(x$test$p)) return("")
+  paste0("Test for overall effect ", pr_p_lab(x$test$p))
 }
 
 #' The heterogeneity line, written under the test

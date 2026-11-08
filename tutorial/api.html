@@ -19,13 +19,15 @@
       <h2>The one entry point</h2>
     </div>
 
-<pre class="code">fit &lt;- <span class="f">easypr</span>(<span class="a">data</span>       = ma$zhang,      <span class="c"># one row per study</span>
-              <span class="a">sm</span>         = <span class="s">"HR"</span>,          <span class="c"># HR, OR, RR, cstat, OE</span>
-              <span class="a">method</span>     = <span class="s">"Inverse"</span>,     <span class="c"># inverse variance</span>
-              <span class="a">method.tau</span> = <span class="s">"REML"</span>,        <span class="c"># between-study variance</span>
-              <span class="a">studlab</span>    = <span class="s">"Study"</span>,       <span class="c"># or left out, and found</span>
-              <span class="a">level</span>      = 0.95,           <span class="c"># both intervals</span>
-              <span class="a">common</span>     = <span class="f">FALSE</span>)         <span class="c"># show the fixed effect too</span></pre>
+<pre class="code">easypr.object.hr &lt;- <span class="f">easypr</span>(
+    <span class="a">data</span>       = ma$zhang,   <span class="c"># one row per study</span>
+    <span class="a">sm</span>         = <span class="s">"HR"</span>,       <span class="c"># HR, OR, RR, cstat, OE</span>
+    <span class="a">method</span>     = <span class="s">"Inverse"</span>,  <span class="c"># inverse variance</span>
+    <span class="a">method.tau</span> = <span class="s">"REML"</span>,     <span class="c"># between-study variance</span>
+    <span class="a">method.ci</span>  = <span class="s">"t"</span>,        <span class="c"># Knapp-Hartung, or "z"</span>
+    <span class="a">studlab</span>    = <span class="s">"Study"</span>,    <span class="c"># or left out, and found</span>
+    <span class="a">level</span>      = 0.95,        <span class="c"># both intervals</span>
+    <span class="a">common</span>     = <span class="f">FALSE</span>)      <span class="c"># show the fixed effect too</span></pre>
 
     <table class="lab" style="margin-top:16px">
       <tr><th style="width:15%">Argument</th><th style="width:47%">What it does</th><th>Default</th></tr>
@@ -33,6 +35,7 @@
       <tr><td class="l">sm</td><td>The summary measure. It decides the columns, the scale, the units and the forest's columns.</td><td class="m">"HR"</td></tr>
       <tr><td class="l">method</td><td>The pooling. These measures arrive as an estimate and a standard error, so inverse variance is the only one there is, and any other is refused by name.</td><td class="m">"Inverse"</td></tr>
       <tr><td class="l">method.tau</td><td>Estimator for the between-study variance. Passed through to metamisc or metafor, so REML, DL, ML and the rest all work.</td><td class="m">"REML"</td></tr>
+      <tr><td class="l">method.ci</td><td>How the interval around the pooled estimate is built. "t" is the Knapp-Hartung adjustment, which the handbook recommends and which matters most when there are few studies; "z" is the normal interval.</td><td class="m">"t"</td></tr>
       <tr><td class="l">studlab</td><td>A column of labels, or a vector of them. Left out, easyPR looks for a column called Study.</td><td class="m">NULL</td></tr>
       <tr><td class="l">level</td><td>Width of the confidence interval and of the prediction interval together.</td><td class="m">0.95</td></tr>
       <tr><td class="l">common</td><td>Print the fixed-effect estimate beside the random-effects one.</td><td class="m">FALSE</td></tr>
@@ -53,10 +56,10 @@
 
     <table class="lab">
       <tr><th style="width:24%">Function</th><th>Main arguments</th></tr>
-      <tr><td class="l">easypr_forest()</td><td class="m">x, main, xlab, xlim, order, columns, prediction, digits, legend, row.height, effect.width</td></tr>
-      <tr><td class="l">easypr_loo()</td><td class="m">x, main, xlab, result</td></tr>
+      <tr><td class="l">easypr_forest()</td><td class="m">x, label.e, label.c, direction, xlab, xlim, order, columns, prediction, digits, row.height, effect.width</td></tr>
+      <tr><td class="l">easypr_loo()</td><td class="m">x, order, xlab, xlim, digits, result</td></tr>
       <tr><td class="l">easypr_metareg()</td><td class="m">x, moderator, main, xlab, ylab, result</td></tr>
-      <tr><td class="l">easypr_funnel()</td><td class="m">x, main, xlab, result</td></tr>
+      <tr><td class="l">easypr_funnel()</td><td class="m">x, main, xlab, levels, result</td></tr>
     </table>
 
     <p class="note" style="margin-top:14px">
@@ -69,16 +72,16 @@
     <div class="g2" style="margin-top:14px">
       <div>
 <pre class="code"><span class="c"># drawn on screen, nothing written</span>
-<span class="f">easypr_forest</span>(fit)
+<span class="f">easypr_forest</span>(easypr.object.hr)
 
 <span class="c"># written, and the size reported</span>
-<span class="f">easypr_forest</span>(fit,
+<span class="f">easypr_forest</span>(easypr.object.hr,
               <span class="a">file.name</span> = <span class="s">"forest"</span>,
               <span class="a">path</span> = <span class="s">"figures"</span>)</pre>
       </div>
       <div>
         <div class="console">easypr: wrote figures/forest.png
-  (11.18 x 7.35 inches)</div>
+  (7.75 x 8.37 inches)</div>
         <p class="note" style="margin-top:12px">
           <code>result = FALSE</code> keeps the console quiet when the figure
           is the only thing you want, which is what a chunk in a book or a
@@ -102,15 +105,17 @@
     </p>
 
     <table class="lab">
-      <tr><th style="width:17%">sm</th><th style="width:36%">Columns</th><th>Axis</th></tr>
-      <tr><td class="l">"HR", "OR", "RR"</td><td class="m">Study, N, HR (95% CI), Weight</td><td>ratio ladder, 1 always labelled</td></tr>
-      <tr><td class="l">"cstat"</td><td class="m">Study, N, Events, c (95% CI), Weight</td><td>c-statistic, spaced as the logit</td></tr>
-      <tr><td class="l">"OE"</td><td class="m">Study, Observed, Expected, O:E (95% CI), Weight</td><td>ratio ladder, 1 always labelled</td></tr>
+      <tr><th style="width:17%">sm</th><th style="width:40%">Columns</th><th>Axis</th></tr>
+      <tr><td class="l">"HR", "OR", "RR"</td><td class="m">Study, N, HR, 95% CI, Weight</td><td>ratio ladder, 1 always labelled</td></tr>
+      <tr><td class="l">"cstat"</td><td class="m">Study, N, Events, c, 95% CI, Weight</td><td>c-statistic, spaced as the logit</td></tr>
+      <tr><td class="l">"OE"</td><td class="m">Study, Observed, Expected, O:E, 95% CI, Weight</td><td>ratio ladder, 1 always labelled</td></tr>
     </table>
 
     <p class="note" style="margin-top:14px">
       <code>columns = FALSE</code> leaves the study label alone, and a
-      character vector keeps the ones you name.
+      character vector keeps the ones you name. A column of counts is
+      totalled on the pooled row. Every column is centred but the study
+      label, which is left.
     </p>
   </section>
 

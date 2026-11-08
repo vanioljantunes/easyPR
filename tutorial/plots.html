@@ -29,9 +29,9 @@
         </figure>
       </div>
       <div>
-<pre class="code">fit.oe &lt;- <span class="f">easypr</span>(EuroSCORE, <span class="a">sm</span> = <span class="s">"OE"</span>)
+<pre class="code">easypr.object.oe &lt;- <span class="f">easypr</span>(EuroSCORE, <span class="a">sm</span> = <span class="s">"OE"</span>)
 
-<span class="f">easypr_forest</span>(fit.oe)</pre>
+<span class="f">easypr_forest</span>(easypr.object.oe)</pre>
         <p class="note" style="margin-top:12px">
           One is perfect agreement. Below one the model over-predicts, above
           one it under-predicts.
@@ -55,7 +55,7 @@
 
     <div class="g2 narrow">
       <div>
-<pre class="code"><span class="f">easypr_loo</span>(fit.c)</pre>
+<pre class="code"><span class="f">easypr_loo</span>(easypr.object.cstat)</pre>
         <p class="note" style="margin-top:12px">
           Every row is one analysis rather than one study, so it carries
           that analysis's own pooled estimate, interval, heterogeneity and
@@ -93,7 +93,7 @@
       <div>
         <figure class="plotcard">
           <img src="../man/figures/fig-bubble.png" alt="Bubble plot of the c-statistic against mean age">
-          <figcaption>easypr_metareg(fit.c, "mean.age"). The bubbles are
+          <figcaption>easypr_metareg(easypr.object.cstat, "mean.age"). The bubbles are
           sized by weight, so you can see how few studies carry each end of
           the line.</figcaption>
         </figure>
@@ -101,7 +101,7 @@
       <div>
         <figure class="plotcard">
           <img src="../man/figures/fig-funnel.png" alt="Funnel plot of the validations with the asymmetry test">
-          <figcaption>easypr_funnel(fit.c), with the test metamisc
+          <figcaption>easypr_funnel(easypr.object.cstat), with the test metamisc
           recommends for that measure printed into the subtitle.</figcaption>
         </figure>
       </div>

@@ -31,7 +31,7 @@ pr_p_lab <- function(p, digits = 3) {
 #' @keywords internal
 #' @noRd
 pr_gg_theme <- function(axis = FALSE, axis_text_size = 8,
-                        title_face = "plain") {
+                        title_face = "plain", title = TRUE) {
   base <- ggplot2::theme_bw() +
     ggplot2::theme(
       axis.title.y    = ggplot2::element_blank(),
@@ -50,9 +50,10 @@ pr_gg_theme <- function(axis = FALSE, axis_text_size = 8,
     axis.text.x  = ggplot2::element_text(colour = ink, size = axis_text_size),
     axis.ticks.x = ggplot2::element_line(colour = ink, linewidth = 0.4),
     axis.line.x  = ggplot2::element_line(colour = ink, linewidth = 0.4),
-    axis.title.x = ggplot2::element_text(colour = ink, size = 10,
-                                         face = title_face,
-                                         margin = ggplot2::margin(t = 4)),
+    axis.title.x = if (isTRUE(title))
+      ggplot2::element_text(colour = ink, size = 10, face = title_face,
+                            margin = ggplot2::margin(t = 4))
+      else ggplot2::element_blank(),
     axis.ticks.length = grid::unit(3, "pt"))
 }
 
@@ -76,15 +77,19 @@ pr_zebra <- function(ypos) {
 #'
 #' @keywords internal
 #' @noRd
-pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
-                          notes = NULL, colour = NULL, spans = NULL,
-                          span_y = NULL, cell = 3.0, hdr = 3.2, xlab = " ") {
+pr_text_panel <- function(cols, just, ypos, face, header_y, ylim, zebra,
+                          notes = NULL, colour = NULL, cell = 3.0, hdr = 3.2,
+                          xlab = " ") {
+  just <- rep_len(just, length(cols))
+  # unname, or the lookup's names travel into the data frame below and R
+  # warns about row names on every column of every panel
+  hj   <- unname(c(left = 0, center = 0.5, right = 1)[just])
   w <- vapply(seq_along(cols), function(i)
-    max(nchar(c(names(cols)[i], as.character(cols[[i]]))), na.rm = TRUE) +
-      if (right[i]) 1.5 else 2.5, numeric(1))
+    max(nchar(c(names(cols)[i], as.character(cols[[i]]))), na.rm = TRUE) + 2.5,
+    numeric(1))
   edge  <- cumsum(w) / sum(w)
   start <- c(0, utils::head(edge, -1))
-  xs    <- ifelse(right, edge, start)
+  xs    <- start + hj * (edge - start)
 
   pick <- function(i) {
     if (is.null(colour)) return(rep("black", length(ypos)))
@@ -93,11 +98,10 @@ pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
   }
   cells <- do.call(rbind, lapply(seq_along(cols), function(i) data.frame(
     x = xs[i], ypos = ypos, label = as.character(cols[[i]]), face = face,
-    colour = pick(i), hjust = if (right[i]) 1 else 0,
-    stringsAsFactors = FALSE)))
+    colour = pick(i), hjust = hj[i], stringsAsFactors = FALSE)))
   cells <- cells[!is.na(cells$label) & cells$label != "", , drop = FALSE]
   heads <- data.frame(x = xs, ypos = header_y, label = names(cols),
-                      hjust = ifelse(right, 1, 0), stringsAsFactors = FALSE)
+                      hjust = hj, stringsAsFactors = FALSE)
 
   p <- ggplot2::ggplot(cells, ggplot2::aes(y = .data$ypos)) +
     zebra +
@@ -109,20 +113,6 @@ pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
                        ggplot2::aes(x = .data$x, label = .data$label,
                                     hjust = .data$hjust),
                        fontface = "bold", size = hdr)
-
-  # A span names the group its columns belong to, the way {meta} heads the
-  # experimental and the control columns, and it is underlined so a reader
-  # can see how far it reaches.
-  for (sp in spans) {
-    i0 <- min(sp$cols); i1 <- max(sp$cols)
-    mid <- (start[i0] + edge[i1]) / 2
-    p <- p +
-      ggplot2::annotate("text", x = mid, y = span_y, label = sp$label,
-                        fontface = "bold", size = hdr) +
-      ggplot2::annotate("segment", y = span_y - 0.42, yend = span_y - 0.42,
-                        x = start[i0] + 0.01, xend = edge[i1] - 0.01,
-                        linewidth = 0.4, colour = "grey35")
-  }
   for (n in notes) {
     p <- p + ggplot2::annotate("text", x = 0, y = n$y, label = n$label,
                                hjust = 0, size = cell,
@@ -134,7 +124,11 @@ pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
     # past the edge of the panel instead of widening it.
     ggplot2::coord_cartesian(xlim = c(0, 1), ylim = ylim, clip = "off") +
     ggplot2::labs(x = xlab) +
-    pr_gg_theme(axis = FALSE)
+    # No panel carries an axis title any more: the outcome name and the
+    # favours labels are a grob under all three. A panel that still reserved
+    # the title's height would be shorter than the one that did not, and the
+    # rows would drift apart down the figure.
+    pr_gg_theme(axis = FALSE, title = FALSE)
 }
 
 #' Width of a text panel in inches, from the characters it has to hold
@@ -368,4 +362,34 @@ pr_plot_with_table <- function(p, df, spec, width, height) {
   g <- pr_draw_stack(ggplot2::ggplotGrob(p), body_h = NULL, footer = tbl,
                      footer_h = th)
   invisible(list(grob = g, width = width, height = tot))
+}
+
+#' The two lines written under the axis
+#'
+#' ggplot draws the axis title straight under the tick labels, with nowhere to
+#' put anything between them. The favours labels belong there, in the same ink
+#' and the same size as the outcome name, so the whole block is built as a
+#' grob of its own and stacked under the panels instead.
+#'
+#' @keywords internal
+#' @noRd
+pr_axis_grob <- function(xlab, favours, size = 10) {
+  gp <- grid::gpar(fontsize = size, col = "black")
+  rows <- list()
+  if (!is.null(favours)) {
+    rows <- c(rows, list(grid::gTree(children = grid::gList(
+      grid::textGrob(favours$left,  x = grid::unit(0, "npc"), hjust = 0,
+                     gp = gp),
+      grid::textGrob(favours$right, x = grid::unit(1, "npc"), hjust = 1,
+                     gp = gp)))))
+  }
+  if (!is.null(xlab)) {
+    rows <- c(rows, list(grid::textGrob(
+      xlab, x = grid::unit(0.5, "npc"), hjust = 0.5,
+      gp = grid::gpar(fontsize = size, col = "black", fontface = "bold"))))
+  }
+  if (length(rows) == 0L) return(NULL)
+  h <- grid::unit(rep(1.65 * size, length(rows)), "points")
+  list(grob = gridExtra::arrangeGrob(grobs = rows, ncol = 1, heights = h),
+       height = grid::unit(sum(1.65 * size * length(rows)) + 6, "points"))
 }

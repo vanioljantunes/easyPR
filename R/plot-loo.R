@@ -27,7 +27,7 @@ easypr_loo <- function(x, label.e = NULL, label.c = NULL,
                        main = NULL, xlab = NULL, xlim = NULL,
                        order = c("effect", "data", "study"),
                        digits = 3, legend = NULL, row.height = 0.26,
-                       effect.width = 3.1, result = TRUE,
+                       effect.width = 3.6, result = TRUE,
                        filetype = c("png", "pdf", "tiff"), path = NULL,
                        file.name = NULL, width = NULL, height = NULL) {
   pr_check(x, "easypr_loo()")
@@ -67,7 +67,7 @@ easypr_loo <- function(x, label.e = NULL, label.c = NULL,
   plan$y   <- rev(seq_len(n))
   header_y <- n + 1
   span_y   <- n + 2
-  ylim     <- c(-1.4, span_y + 1.5)
+  ylim     <- c(-0.6, span_y + 1.5)
   zebra    <- pr_zebra(plan$y[plan$kind == "point"])
 
   all_i2 <- c(refits$i2, x$I2)
@@ -82,10 +82,8 @@ easypr_loo <- function(x, label.e = NULL, label.c = NULL,
   lab_cols <- list(Omitted = plan$label)
 
   out <- pr_forest_draw(
-    plan = plan, lab_cols = lab_cols, lab_right = FALSE,
-    spans = NULL, span_y = span_y,
-    val_cols = val_cols, val_right = c(TRUE, TRUE, TRUE, TRUE),
-    val_colour = NULL,
+    plan = plan, lab_cols = lab_cols, lab_just = "left", span_y = span_y,
+    val_cols = val_cols, val_just = "center", val_colour = NULL,
     x = x, xlab = if (is.null(xlab)) paste("Pooled", x$label) else xlab,
     xlim = xlim, prediction = FALSE,
     label.e = label.e, label.c = label.c, direction = direction,

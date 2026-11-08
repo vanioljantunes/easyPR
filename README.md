@@ -102,9 +102,9 @@ spellings and says what it decided they meant.
 ```r
 data(Zhang, package = "metamisc")
 
-fit <- easypr(data = Zhang, method.tau = "REML", sm = "HR",
-              method = "Inverse")
-fit
+easypr.object.hr <- easypr(data = Zhang, method.tau = "REML",
+                           sm = "HR", method = "Inverse")
+easypr.object.hr
 ```
 
 </details>
@@ -115,12 +115,12 @@ easypr: read HR as effect, HR.025 as effect.cilb, HR.975 as effect.ciub.
 Pooled hazard ratio across 20 studies
 Pooling: inverse variance, random effects, REML, Knapp-Hartung interval.
 
-  HR                  2.013
-  95% confidence      1.591 to 2.547
-  95% prediction      1.106 to 3.665
-  tau-squared         0.081  (log scale)
-  I-squared           42.9%
-  test of effect      t = 6.23, p < 0.001
+  HR                       2.013
+  95% confidence           1.591 to 2.547
+  95% prediction           1.106 to 3.665
+  tau-squared              0.081  (log scale)
+  I-squared                42.9%
+  test for overall effect  p < 0.001
 ```
 
 Nothing is pooled on the scale it was reported on. A ratio is pooled on the
@@ -134,7 +134,7 @@ The default, `"t"`, is the Knapp-Hartung adjustment, which the prognosis
 handbook recommends and which matters most when there are few studies.
 `method.ci = "z"` gives the normal interval instead.
 
-`summary(fit)` adds the table of studies, with each one's weight.
+`summary(easypr.object.hr)` adds the table of studies, with each one's weight.
 
 ## 3. The forest, and the interval that matters
 
@@ -142,7 +142,7 @@ handbook recommends and which matters most when there are few studies.
 <summary><b>Draw it</b>: <code>{r forest}</code></summary>
 
 ```r
-easypr_forest(fit,
+easypr_forest(easypr.object.hr,
               label.e = "High expression", label.c = "Low expression",
               direction = "bad", xlab = "Overall survival")
 ```
@@ -184,11 +184,11 @@ report both halves of its performance, and they can disagree.
 ```r
 data(EuroSCORE, package = "metamisc")
 
-fit.c  <- easypr(EuroSCORE, sm = "cstat")
-fit.oe <- easypr(EuroSCORE, sm = "OE")
+easypr.object.cstat <- easypr(EuroSCORE, sm = "cstat")
+easypr.object.oe    <- easypr(EuroSCORE, sm = "OE")
 
-easypr_forest(fit.c)
-easypr_forest(fit.oe)
+easypr_forest(easypr.object.cstat)
+easypr_forest(easypr.object.oe)
 ```
 
 </details>
@@ -220,7 +220,7 @@ whether the numbers mean anything.
 <summary><b>Refit without each study</b>: <code>{r loo}</code></summary>
 
 ```r
-easypr_loo(fit.c)
+easypr_loo(easypr.object.cstat)
 ```
 
 </details>
@@ -242,7 +242,7 @@ declare. It is not a study you may drop.
 <summary><b>One study-level covariate</b>: <code>{r metareg}</code></summary>
 
 ```r
-easypr_metareg(fit.c, "mean.age")
+easypr_metareg(easypr.object.cstat, "mean.age")
 ```
 
 </details>
@@ -266,7 +266,7 @@ that moving a patient along that covariate would move their risk.
 <summary><b>Funnel and the asymmetry test</b>: <code>{r funnel}</code></summary>
 
 ```r
-easypr_funnel(fit.c)
+easypr_funnel(easypr.object.cstat)
 ```
 
 </details>
