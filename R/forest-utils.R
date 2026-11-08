@@ -90,6 +90,10 @@ pr_text_panel <- function(cols, just, ypos, face, header_y, ylim, zebra,
   edge  <- cumsum(w) / sum(w)
   start <- c(0, utils::head(edge, -1))
   xs    <- start + hj * (edge - start)
+  # The panel is drawn without expansion so the zebra begins exactly at the
+  # first study label, which means a right-aligned column would otherwise sit
+  # on the panel edge. Everything is inset by a hair instead.
+  xs    <- 0.008 + xs * 0.984
 
   pick <- function(i) {
     if (is.null(colour)) return(rep("black", length(ypos)))
@@ -122,7 +126,8 @@ pr_text_panel <- function(cols, just, ypos, face, header_y, ylim, zebra,
     # A note is longer than the column it starts in, and the panel is sized
     # by its columns rather than by the note, so the note is allowed to run
     # past the edge of the panel instead of widening it.
-    ggplot2::coord_cartesian(xlim = c(0, 1), ylim = ylim, clip = "off") +
+    ggplot2::coord_cartesian(xlim = c(0, 1), ylim = ylim, clip = "off",
+                             expand = FALSE) +
     ggplot2::labs(x = xlab) +
     # No panel carries an axis title any more: the outcome name and the
     # favours labels are a grob under all three. A panel that still reserved

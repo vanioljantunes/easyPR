@@ -92,9 +92,8 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
   n        <- nrow(plan)
   plan$y   <- rev(seq_len(n))
   header_y <- n + 1
-  span_y   <- n + 2
   note_y   <- c(0, -1)
-  ylim     <- c(min(note_y) - 0.8, span_y + 1.5)
+  ylim     <- c(min(note_y) - 0.8, header_y + 0.9)
   is_study <- plan$kind == "study"
   zebra    <- pr_zebra(plan$y[is_study])
 
@@ -119,7 +118,7 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
     list(y = note_y[2], label = pr_het_line(x)))
 
   out <- pr_forest_draw(
-    plan = plan, lab_cols = lab$cols, lab_just = lab$just, span_y = span_y,
+    plan = plan, lab_cols = lab$cols, lab_just = lab$just,
     val_cols = val_cols, val_just = "center", val_colour = NULL,
     x = x, xlab = xlab, xlim = xlim, prediction = has_pi,
     label.e = label.e, label.c = label.c, direction = direction,
@@ -159,7 +158,7 @@ easypr_forest <- function(x, label.e = NULL, label.c = NULL,
 #'
 #' @keywords internal
 #' @noRd
-pr_forest_draw <- function(plan, lab_cols, lab_just, span_y,
+pr_forest_draw <- function(plan, lab_cols, lab_just,
                            val_cols, val_just, val_colour, x, xlab, xlim,
                            prediction, label.e, label.c, direction,
                            header_y, ylim, zebra, notes, row.height,
@@ -243,9 +242,10 @@ pr_forest_draw <- function(plan, lab_cols, lab_just, span_y,
 
   # Centred over the scale: how the interval was built, how the between-study
   # variance was estimated, and what is being pooled.
-  p <- p + ggplot2::annotate("text", x = (lo + hi) / 2, y = span_y + 0.6,
+  p <- p + ggplot2::annotate("text", x = (lo + hi) / 2, y = header_y,
                              label = pr_method_line(x), size = 10 / 2.845,
-                             colour = "black", lineheight = 0.95)
+                             colour = "black", fontface = "bold",
+                             lineheight = 0.9)
 
   fav   <- pr_favours(label.e, label.c, direction)
   ticks <- pr_ticks(lo, hi, x$scale)
@@ -258,7 +258,8 @@ pr_forest_draw <- function(plan, lab_cols, lab_just, span_y,
   p_effect <- p +
     ggplot2::scale_x_continuous(breaks = ticks$at[keep],
                                 labels = ticks$labels[keep]) +
-    ggplot2::coord_cartesian(xlim = c(lo, hi), ylim = ylim, clip = "off") +
+    ggplot2::coord_cartesian(xlim = c(lo, hi), ylim = ylim, clip = "off",
+                             expand = FALSE) +
     pr_gg_theme(axis = TRUE, title = FALSE)
 
   if (identical(main, FALSE)) main <- NULL

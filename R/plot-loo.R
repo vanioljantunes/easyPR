@@ -66,8 +66,7 @@ easypr_loo <- function(x, label.e = NULL, label.c = NULL,
   n        <- nrow(plan)
   plan$y   <- rev(seq_len(n))
   header_y <- n + 1
-  span_y   <- n + 2
-  ylim     <- c(-0.6, span_y + 1.5)
+  ylim     <- c(-0.6, header_y + 0.9)
   zebra    <- pr_zebra(plan$y[plan$kind == "point"])
 
   all_i2 <- c(refits$i2, x$I2)
@@ -82,7 +81,7 @@ easypr_loo <- function(x, label.e = NULL, label.c = NULL,
   lab_cols <- list(Omitted = plan$label)
 
   out <- pr_forest_draw(
-    plan = plan, lab_cols = lab_cols, lab_just = "left", span_y = span_y,
+    plan = plan, lab_cols = lab_cols, lab_just = "left",
     val_cols = val_cols, val_just = "center", val_colour = NULL,
     x = x, xlab = if (is.null(xlab)) paste("Pooled", x$label) else xlab,
     xlim = xlim, prediction = FALSE,
