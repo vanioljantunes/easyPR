@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>easyPR data</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <h1>One row per study, named however your sheet names it</h1>
+    <p>What <span style="font-family:Consolas,monospace">sm</span> reads, and what it does when a column is missing</p>
+  </header>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">1</div>
+      <h2>Lay it out the way you extracted it</h2>
+    </div>
+
+    <p class="note">
+      One row per study for a prognostic factor, one row per validation for a
+      model. What each row needs is whatever that paper happened to report,
+      and papers do not agree. One gives the interval, the next the standard
+      error, a third neither and leaves you the counts to work back from.
+    </p>
+
+    <div class="g2">
+      <div>
+        <h3>A prognostic factor: ratios with their limits</h3>
+<pre class="code"><span class="c"># metamisc::Zhang, 20 studies</span>
+Study                   N    HR  HR.025  HR.975
+Gonzalez-Rodilla 2013  126  1.14    0.52    2.52
+Togami 2012             71  3.00    1.15    7.01
+Mori 2010               63  2.58    1.03    7.92
+Konecny 2009           273  2.13    1.65    2.73
+<span class="c">...</span></pre>
+        <p class="note" style="margin-top:12px">
+          No standard error anywhere in the table. easyPR recovers it from
+          the interval, on the log scale, where the interval is symmetric.
+        </p>
+      </div>
+      <div>
+        <h3>A model: whatever each validation reported</h3>
+<pre class="code"><span class="c"># metamisc::EuroSCORE, 23 validations</span>
+Study        n  n.events  e.events  c.index  se.c.index
+Nashef    5553       232     221.3    0.809      0.0138
+Biancari  1027        28      46.0    0.867      0.0351
+Di Dedda  1090        41      34.0    0.810      0.0356
+<span class="c">...</span></pre>
+        <p class="note" style="margin-top:12px">
+          The same table answers two different questions. With
+          <code>sm = "cstat"</code> easyPR reads the c-statistic columns,
+          with <code>sm = "OE"</code> it reads the counts.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">2</div>
+      <h2>You do not rename your columns first</h2>
+    </div>
+
+    <p class="note">
+      metamisc wants columns called <code>cstat</code>, <code>cstat.se</code>,
+      <code>N</code>, <code>O</code> and <code>E</code>. Almost nobody names
+      them that. Its own EuroSCORE data does not. So easyPR recognises the
+      common spellings, and prints the mapping rather than applying it
+      silently.
+    </p>
+
+    <table class="lab">
+      <tr><th style="width:17%">What it wants</th><th>Spellings it recognises</th></tr>
+      <tr><td class="l">cstat</td><td class="m">c.index, cindex, c.statistic, AUC, auc</td></tr>
+      <tr><td class="l">cstat.se</td><td class="m">se.c.index, se.cstat, se.auc, seAUC</td></tr>
+      <tr><td class="l">N</td><td class="m">n, n.total, sample.size</td></tr>
+      <tr><td class="l">O</td><td class="m">n.events, observed, events</td></tr>
+      <tr><td class="l">E</td><td class="m">e.events, expected</td></tr>
+      <tr><td class="l">the ratio</td><td class="m">HR, OR, RR, ratio, estimate, TE</td></tr>
+      <tr><td class="l">its limits</td><td class="m">HR.025 and HR.975, ci.lb and ci.ub, lower and upper</td></tr>
+    </table>
+
+    <div class="console" style="margin-top:16px">&gt; fit &lt;- easypr(EuroSCORE, sm = "cstat")
+<span class="hl">easypr: read c.index as cstat, se.c.index as cstat.se,
+        c.index.95CIl as cstat.cilb, c.index.95CIu as cstat.ciub,
+        n as N, n.events as O, e.events as E.</span></div>
+
+    <p class="note" style="margin-top:14px">
+      When your sheet holds both an odds ratio and a hazard ratio, the one
+      you named in <code>sm</code> is the one that is read.
+    </p>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">3</div>
+      <h2>When the table cannot answer, it says so</h2>
+    </div>
+
+    <div class="g2 narrow">
+      <div>
+        <div class="warn">
+          <b>An error is a result.</b><br><br>
+          A sheet of hazard ratios holds no c-statistic. There is nothing to
+          pool, so easyPR names the columns it looked for and stops. A
+          package that guessed here would hand you a number, and the number
+          would mean nothing.
+        </div>
+      </div>
+      <div>
+        <div class="console">&gt; easypr(ma$zhang, sm = "cstat")
+
+<span class="hl">Error: easypr: no validation in `data` ended up with
+  both an estimate and a standard error for cstat.
+  Check that the columns hold numbers rather than
+  text.</span></div>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:16px">
+      The same happens to a measure easyPR does not pool, and to a pooling
+      method these measures cannot use. Both refusals name what you asked for
+      and what is available, rather than falling back on a default.
+    </p>
+
+    <div class="console">&gt; easypr(ma$zhang, sm = "SMD")
+
+Error: easypr: `sm = "SMD"` is not a measure easyPR pools. Use one of:
+  HR, OR, RR, cstat, OE. "HR", "OR" and "RR" pool a prognostic
+  factor; "cstat" and "OE" pool a model's discrimination and its
+  calibration.</div>
+  </section>
+
+  <footer>
+    A study that reported too little is dropped, counted, and named in the
+    message. It is never quietly left out of the denominator.
+  </footer>
+
+</div>
+</body>
+</html>

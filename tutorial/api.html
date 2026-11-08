@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>easyPR api</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <h1>The call, and every argument it takes</h1>
+    <p>If you have used <span style="font-family:Consolas,monospace">meta</span>, you have already met most of these</p>
+  </header>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">1</div>
+      <h2>The one entry point</h2>
+    </div>
+
+<pre class="code">fit &lt;- <span class="f">easypr</span>(<span class="a">data</span>       = ma$zhang,      <span class="c"># one row per study</span>
+              <span class="a">sm</span>         = <span class="s">"HR"</span>,          <span class="c"># HR, OR, RR, cstat, OE</span>
+              <span class="a">method</span>     = <span class="s">"Inverse"</span>,     <span class="c"># inverse variance</span>
+              <span class="a">method.tau</span> = <span class="s">"REML"</span>,        <span class="c"># between-study variance</span>
+              <span class="a">studlab</span>    = <span class="s">"Study"</span>,       <span class="c"># or left out, and found</span>
+              <span class="a">level</span>      = 0.95,           <span class="c"># both intervals</span>
+              <span class="a">common</span>     = <span class="f">FALSE</span>)         <span class="c"># show the fixed effect too</span></pre>
+
+    <table class="lab" style="margin-top:16px">
+      <tr><th style="width:15%">Argument</th><th style="width:47%">What it does</th><th>Default</th></tr>
+      <tr><td class="l">data</td><td>A data frame. One row per study for a factor, one per validation for a model.</td><td class="m">required</td></tr>
+      <tr><td class="l">sm</td><td>The summary measure. It decides the columns, the scale, the units and the forest's columns.</td><td class="m">"HR"</td></tr>
+      <tr><td class="l">method</td><td>The pooling. These measures arrive as an estimate and a standard error, so inverse variance is the only one there is, and any other is refused by name.</td><td class="m">"Inverse"</td></tr>
+      <tr><td class="l">method.tau</td><td>Estimator for the between-study variance. Passed through to metamisc or metafor, so REML, DL, ML and the rest all work.</td><td class="m">"REML"</td></tr>
+      <tr><td class="l">studlab</td><td>A column of labels, or a vector of them. Left out, easyPR looks for a column called Study.</td><td class="m">NULL</td></tr>
+      <tr><td class="l">level</td><td>Width of the confidence interval and of the prediction interval together.</td><td class="m">0.95</td></tr>
+      <tr><td class="l">common</td><td>Print the fixed-effect estimate beside the random-effects one.</td><td class="m">FALSE</td></tr>
+    </table>
+
+    <p class="note" style="margin-top:14px">
+      There is no <code>random</code> to turn off. A prognostic review is
+      summarised by a random-effects model and its prediction interval, so
+      asking for the fixed effect alone is refused with that sentence.
+    </p>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">2</div>
+      <h2>The four that take what it returned</h2>
+    </div>
+
+    <table class="lab">
+      <tr><th style="width:24%">Function</th><th>Main arguments</th></tr>
+      <tr><td class="l">easypr_forest()</td><td class="m">x, main, xlab, xlim, order, columns, prediction, digits, legend, row.height, effect.width</td></tr>
+      <tr><td class="l">easypr_loo()</td><td class="m">x, main, xlab, result</td></tr>
+      <tr><td class="l">easypr_metareg()</td><td class="m">x, moderator, main, xlab, ylab, result</td></tr>
+      <tr><td class="l">easypr_funnel()</td><td class="m">x, main, xlab, result</td></tr>
+    </table>
+
+    <p class="note" style="margin-top:14px">
+      Every one of them also takes <code>filetype</code>, <code>path</code>,
+      <code>file.name</code>, <code>width</code> and <code>height</code>.
+      Name a file and the figure is written and the path reported. Leave it
+      out and the figure is drawn on screen and nothing is saved.
+    </p>
+
+    <div class="g2" style="margin-top:14px">
+      <div>
+<pre class="code"><span class="c"># drawn on screen, nothing written</span>
+<span class="f">easypr_forest</span>(fit)
+
+<span class="c"># written, and the size reported</span>
+<span class="f">easypr_forest</span>(fit,
+              <span class="a">file.name</span> = <span class="s">"forest"</span>,
+              <span class="a">path</span> = <span class="s">"figures"</span>)</pre>
+      </div>
+      <div>
+        <div class="console">easypr: wrote figures/forest.png
+  (11.18 x 7.35 inches)</div>
+        <p class="note" style="margin-top:12px">
+          <code>result = FALSE</code> keeps the console quiet when the figure
+          is the only thing you want, which is what a chunk in a book or a
+          slide usually wants.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">3</div>
+      <h2>What sm puts in the forest</h2>
+    </div>
+
+    <p class="note">
+      The columns beside the effect are not a style choice. They are the
+      quantities that measure is read against, so they follow
+      <code>sm</code> without being asked for. A column your table does not
+      carry is dropped rather than printed as a row of blanks.
+    </p>
+
+    <table class="lab">
+      <tr><th style="width:17%">sm</th><th style="width:36%">Columns</th><th>Axis</th></tr>
+      <tr><td class="l">"HR", "OR", "RR"</td><td class="m">Study, N, HR (95% CI), Weight</td><td>ratio ladder, 1 always labelled</td></tr>
+      <tr><td class="l">"cstat"</td><td class="m">Study, N, Events, c (95% CI), Weight</td><td>c-statistic, spaced as the logit</td></tr>
+      <tr><td class="l">"OE"</td><td class="m">Study, Observed, Expected, O:E (95% CI), Weight</td><td>ratio ladder, 1 always labelled</td></tr>
+    </table>
+
+    <p class="note" style="margin-top:14px">
+      <code>columns = FALSE</code> leaves the study label alone, and a
+      character vector keeps the ones you name.
+    </p>
+  </section>
+
+  <footer>
+    One function fits, four draw. Nothing else is exported, and nothing takes
+    a formula.
+  </footer>
+
+</div>
+</body>
+</html>

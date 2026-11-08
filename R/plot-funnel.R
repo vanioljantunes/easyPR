@@ -1,4 +1,4 @@
-#' A funnel of the validations, with a test of asymmetry
+#' A funnel of the studies, with a test of asymmetry
 #'
 #' Asymmetry in a prognostic review is read with more care than in a
 #' treatment review. Small validations are not only more variable, they are
@@ -13,7 +13,7 @@
 #' @examples
 #' \donttest{
 #' data(EuroSCORE, package = "metamisc")
-#' easypr_funnel(easypr(EuroSCORE, measure = "cstat"))
+#' easypr_funnel(easypr(EuroSCORE, sm = "cstat"))
 #' }
 #' @export
 easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
@@ -23,7 +23,7 @@ easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
   pr_check(x, "easypr_funnel()")
   t <- x$table
   if (nrow(t) < 10L) {
-    message("easypr: ", nrow(t), " validations. A test of funnel asymmetry ",
+    message("easypr: ", nrow(t), " ", pr_plural(x$what), ". A test of funnel asymmetry ",
             "has little power below about ten, so read it as a description ",
             "and not as evidence of absence.")
   }
@@ -39,7 +39,7 @@ easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
   }))
 
   if (is.null(xlab)) xlab <- x$label
-  if (is.null(main)) main <- paste0("Funnel of the validations, ", x$label)
+  if (is.null(main)) main <- paste0("Funnel of the ", pr_plural(x$what), ", ", x$label)
 
   p <- ggplot2::ggplot() +
     ggplot2::geom_ribbon(data = bands,
@@ -52,7 +52,7 @@ easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
                         size = 2.1, colour = "#1b3a5c") +
     ggplot2::scale_y_reverse() +
     ggplot2::labs(x = xlab, y = "Standard error", title = main,
-                  subtitle = pr_fat_line(ft, nrow(t))) +
+                  subtitle = pr_fat_line(ft, nrow(t), x$what)) +
     pr_theme()
 
   if (result && !is.null(ft)) print(ft)
@@ -64,10 +64,11 @@ easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
 
 #' @keywords internal
 #' @noRd
-pr_fat_line <- function(ft, k) {
-  if (is.null(ft)) return(sprintf("%d validations", k))
+pr_fat_line <- function(ft, k, what = "study") {
+  n <- sprintf("%d %s", k, pr_plural(what, k))
+  if (is.null(ft)) return(n)
   p <- tryCatch(as.numeric(ft$pval), error = function(e) NA_real_)
-  if (!is.finite(p)) return(sprintf("%d validations", k))
-  sprintf("%d validations; test of asymmetry p = %.3f%s", k, p,
+  if (!is.finite(p)) return(n)
+  sprintf("%s; test of asymmetry p = %.3f%s", n, p,
           if (k < 10) ", too few studies to interpret" else "")
 }

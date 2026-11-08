@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>easyPR overview</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <h1>One call, and four things to do with it</h1>
+    <p>Prognostic meta-analysis argued the way the <span style="font-family:Consolas,monospace">meta</span> package argues</p>
+  </header>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">1</div>
+      <h2>You name the measure, not the scale</h2>
+    </div>
+
+    <div class="g2">
+      <div>
+        <h3>What a prognostic review usually asks of you</h3>
+<pre class="code"><span class="c"># log the ratio, recover its standard error</span>
+<span class="c"># from the interval, remember which scale</span>
+<span class="c"># you are on, then undo it all to report</span>
+d$logHR   &lt;- <span class="f">log</span>(d$HR)
+d$seLogHR &lt;- (<span class="f">log</span>(d$HR.975) -
+              <span class="f">log</span>(d$HR.025)) / (2 * 1.96)
+
+fit &lt;- <span class="f">metagen</span>(<span class="a">TE</span> = logHR, <span class="a">seTE</span> = seLogHR,
+               <span class="a">data</span> = d, <span class="a">sm</span> = <span class="s">"HR"</span>)</pre>
+        <p class="note" style="margin-top:12px">
+          Four lines before the model, and every one of them a place to put
+          the wrong column. The c-statistic wants the logit instead of the
+          log, and the O:E ratio wants the log again, so the reader ends up
+          learning three recipes rather than one.
+        </p>
+      </div>
+      <div>
+        <h3>What easyPR asks</h3>
+<pre class="code"><span class="c"># name the measure the studies reported</span>
+fit &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
+              <span class="a">sm</span> = <span class="s">"HR"</span>,
+              <span class="a">method</span> = <span class="s">"Inverse"</span>,
+              <span class="a">method.tau</span> = <span class="s">"REML"</span>)</pre>
+        <div class="good" style="margin-top:12px">
+          <b>sm picks the columns.</b><br><br>
+          It also fixes the scale the pooling happens on, the units the
+          answer comes back in, and which columns the forest carries. easyPR
+          recognises the spellings your spreadsheet already uses, and says
+          what it decided they meant.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">2</div>
+      <h2>Three measures, because a review asks three questions</h2>
+    </div>
+
+    <p class="note">
+      A prognostic review is one of two things, and the second is two halves.
+      Either it asks what a <b>factor</b> does to risk, or it asks whether a
+      whole <b>model</b> works somewhere else. A model that works has to both
+      rank patients correctly and quote risks that happen.
+    </p>
+
+    <table class="lab">
+      <tr><th style="width:17%">sm</th><th style="width:40%">The question it answers</th><th>Pooled on</th></tr>
+      <tr>
+        <td class="l">"HR", "OR", "RR"</td>
+        <td>How much does this factor shift risk?</td>
+        <td class="m">log, read back as a ratio</td>
+      </tr>
+      <tr>
+        <td class="l">"cstat"</td>
+        <td>Does the model rank patients correctly? Discrimination.</td>
+        <td class="m">logit, read back as a c-statistic</td>
+      </tr>
+      <tr>
+        <td class="l">"OE"</td>
+        <td>Are the risks it quotes the risks that happen? Calibration.</td>
+        <td class="m">log, read back as a ratio</td>
+      </tr>
+    </table>
+
+    <p class="note" style="margin-top:14px">
+      A model can rank patients perfectly and still quote risks that are
+      twice what happens. A review that reports only the c-statistic has left
+      out whether the numbers mean anything.
+    </p>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">3</div>
+      <h2>The family</h2>
+    </div>
+
+    <p class="note">
+      One function fits. The other four take what it returned. The package
+      exports nothing else.
+    </p>
+
+    <table class="lab">
+      <tr><th style="width:21%">Function</th><th style="width:34%">What it gives you</th><th>What it will not do</th></tr>
+      <tr>
+        <td class="l">easypr()</td>
+        <td>The pooled measure, its confidence interval, the prediction
+            interval, tau-squared and I-squared, and the per-study table
+            underneath.</td>
+        <td>Choose the measure. <code>sm</code> decides what is read, and a
+            table that cannot support it is an error rather than a guess.</td>
+      </tr>
+      <tr>
+        <td class="l">easypr_forest()</td>
+        <td>One row per study, with the columns <code>sm</code> chose, the
+            pooled diamond, and the prediction interval drawn through it.</td>
+        <td>Hide the prediction interval. It is drawn by default, because it
+            is the one to quote.</td>
+      </tr>
+      <tr>
+        <td class="l">easypr_loo()</td>
+        <td>The pool refitted with each study left out in turn, sorted, so
+            the one carrying the result is at the end.</td>
+        <td>Suggest that the study which moves it should be dropped.</td>
+      </tr>
+      <tr>
+        <td class="l">easypr_metareg()</td>
+        <td>A study-level covariate against the measure, with the bubble
+            plot that shows how few studies carry each end of the line.</td>
+        <td>Call a study-level slope a patient-level effect.</td>
+      </tr>
+      <tr>
+        <td class="l">easypr_funnel()</td>
+        <td>The studies against their standard errors, with the asymmetry
+            test metamisc recommends for that measure.</td>
+        <td>Say the asymmetry is publication bias.</td>
+      </tr>
+    </table>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">4</div>
+      <h2>What one call prints</h2>
+    </div>
+
+    <div class="g2 wide">
+      <div>
+        <p class="note">
+          The pooled number, both intervals, and the sentence saying which of
+          them to read. Nothing has to be exponentiated by hand, and
+          tau-squared is labelled with the scale it belongs to, because it is
+          a variance on the pooling scale and never travels back with the
+          effect.
+        </p>
+<pre class="code">fit &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
+              <span class="a">method.tau</span> = <span class="s">"REML"</span>,
+              <span class="a">sm</span> = <span class="s">"HR"</span>,
+              <span class="a">method</span> = <span class="s">"Inverse"</span>)
+
+fit</pre>
+      </div>
+      <div>
+        <div class="console">easypr: read HR as effect, HR.025 as effect.cilb,
+        HR.975 as effect.ciub.
+
+Pooled hazard ratio across 20 studies
+Pooling: inverse variance, random effects, REML.
+
+  HR                  2.013
+  95% confidence      1.610 to 2.518
+<span class="hl">  95% prediction      1.105 to 3.669</span>
+  tau-squared         0.081  (log scale)
+  I-squared           42.9%
+
+The confidence interval is about the average effect.
+The prediction interval is what a new study should
+expect, and it is the one to quote.</div>
+      </div>
+    </div>
+
+    <figure class="plotcard" style="margin-top:20px">
+      <img src="../man/figures/fig-forest-hr.png" alt="Forest plot of twenty studies of one prognostic factor">
+      <figcaption>The same fit as a forest. The columns beside the effect are
+      the ones <span style="font-family:Consolas,monospace">sm</span> chose,
+      the axis is a ratio ladder, and the red bar through the diamond is the
+      prediction interval.</figcaption>
+    </figure>
+  </section>
+
+  <footer>
+    metamisc and metafor do the estimation. easyPR prepares the data, keeps
+    one scale inside, and reports what comes back in the words a systematic
+    reviewer uses.
+  </footer>
+
+</div>
+</body>
+</html>

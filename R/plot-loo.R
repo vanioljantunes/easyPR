@@ -1,6 +1,6 @@
-#' Leave one validation out
+#' Leave one study out
 #'
-#' Refits the pool with each validation removed in turn. A pooled performance
+#' Refits the pool with each study removed in turn. A pooled result
 #' that moves when one study leaves is being carried by that study, and a
 #' reader is entitled to know which one before they trust the number.
 #'
@@ -10,7 +10,7 @@
 #' @examples
 #' \donttest{
 #' data(EuroSCORE, package = "metamisc")
-#' easypr_loo(easypr(EuroSCORE, measure = "cstat"))
+#' easypr_loo(easypr(EuroSCORE, sm = "cstat"))
 #' }
 #' @export
 easypr_loo <- function(x, main = NULL, xlab = NULL, result = TRUE,
@@ -18,7 +18,7 @@ easypr_loo <- function(x, main = NULL, xlab = NULL, result = TRUE,
                        file.name = NULL, width = NULL, height = NULL) {
   pr_check(x, "easypr_loo()")
   t <- x$table
-  if (nrow(t) < 3L) pr_stop("leave-one-out needs at least three validations.")
+  if (nrow(t) < 3L) pr_stop("leave-one-out needs at least three ", pr_plural(x$what), ".")
 
   out <- do.call(rbind, lapply(seq_len(nrow(t)), function(i) {
     r <- pr_rma(t[-i, ])
@@ -31,7 +31,7 @@ easypr_loo <- function(x, main = NULL, xlab = NULL, result = TRUE,
                         levels = pr_unique_labels(out$omitted))
 
   if (is.null(xlab)) xlab <- paste("Pooled", x$label, "with the study omitted")
-  if (is.null(main)) main <- "Leave one validation out"
+  if (is.null(main)) main <- paste0("Leave one ", x$what, " out")
 
   p <- ggplot2::ggplot(out, ggplot2::aes(x = est, y = omitted)) +
     ggplot2::annotate("rect", xmin = x$ci.lb, xmax = x$ci.ub, ymin = -Inf,

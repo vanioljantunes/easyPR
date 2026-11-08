@@ -19,7 +19,7 @@
 #' @examples
 #' \donttest{
 #' data(EuroSCORE, package = "metamisc")
-#' easypr_metareg(easypr(EuroSCORE, measure = "cstat"), "mean.age")
+#' easypr_metareg(easypr(EuroSCORE, sm = "cstat"), "mean.age")
 #' }
 #' @export
 easypr_metareg <- function(x, moderator, main = NULL, xlab = NULL, ylab = NULL,
@@ -44,11 +44,11 @@ easypr_metareg <- function(x, moderator, main = NULL, xlab = NULL, ylab = NULL,
   mod  <- d[[moderator]][match(t$studlab, slab)]
   ok   <- is.finite(as.numeric(mod))
   if (sum(ok) < 3L) {
-    pr_stop("only ", sum(ok), " validations have a value for `", moderator,
+    pr_stop("only ", sum(ok), " ", pr_plural(x$what), " have a value for `", moderator,
             "`, which is too few to regress on.")
   }
   if (any(!ok)) {
-    message("easypr: ", sum(!ok), " validations have no value for `",
+    message("easypr: ", sum(!ok), " ", pr_plural(x$what), " have no value for `",
             moderator, "` and are left out of the regression.")
   }
   t <- t[ok, ]; t$mod <- as.numeric(mod[ok])

@@ -15,12 +15,13 @@ cannot drift apart.
 
 | Section | What it covers |
 |:---|:---|
-| **[1 . Install it, and what it does](#1-install-it-and-what-it-does)** | The one entry point, the four functions that take what it returns, and the two measures |
-| **[2 . Prepare the data, then fit it](#2-prepare-the-data-then-fit-it)** | One row per validation, whatever each paper reported, then `easypr()` |
-| **[3 . The forest, and the interval that matters](#3-the-forest-and-the-interval-that-matters)** | `easypr_forest()`, and why the prediction interval is the one to quote |
-| **[4 . Leave one out](#4-leave-one-out)** | Whether one validation is carrying the pooled result |
-| **[5 . Meta-regression](#5-meta-regression)** | `easypr_metareg()`, and what a study-level covariate can and cannot tell you |
-| **[6 . Small-study effects](#6-small-study-effects)** | `easypr_funnel()`, and why asymmetry is read differently here |
+| **[1 . Install it, and what it does](#1-install-it-and-what-it-does)** | The one entry point, the four functions that take what it returns, and every main argument |
+| **[2 . Prepare the data, then fit it](#2-prepare-the-data-then-fit-it)** | One row per study, whatever each paper reported, then `easypr()` |
+| **[3 . The forest, and the interval that matters](#3-the-forest-and-the-interval-that-matters)** | `easypr_forest()`, the columns `sm` chooses, and why the prediction interval is the one to quote |
+| **[4 . A model, not a factor](#4-a-model-not-a-factor)** | Discrimination and calibration, and why a review needs both |
+| **[5 . Leave one out](#5-leave-one-out)** | Whether one study is carrying the pooled result |
+| **[6 . Meta-regression](#6-meta-regression)** | `easypr_metareg()`, and what a study-level covariate can and cannot tell you |
+| **[7 . Small-study effects](#7-small-study-effects)** | `easypr_funnel()`, and why asymmetry is read differently here |
 
 <sub>[References](#references) . [Licence](#licence)</sub>
 
@@ -28,127 +29,236 @@ cannot drift apart.
 
 ## 1. Install it, and what it does
 
-A **prognostic meta-analysis** does not pool a treatment effect. It pools how
-well a model performs when somebody else runs it on their own patients, and
-performance has two halves that can disagree.
+![One call and four things to do with it: easyPR has no formula argument, and you name the measure rather than the scale](man/figures/overview.png)
 
-| Measure | Question | `measure =` |
-|:---|:---|:---|
-| c-statistic | Does the model rank patients correctly? | `"cstat"` |
-| O:E ratio | Are the risks it quotes the risks that happen? | `"OE"` |
-| hazard, odds or risk ratio | How much does one factor shift risk? | `"ratio"` |
+A **prognostic meta-analysis** does not pool a treatment effect. It asks one
+of two questions, and the second has two halves: what does this **factor** do
+to risk, and does this **model** work when somebody else runs it on their own
+patients. A model that works has to rank patients correctly and also quote
+risks that happen.
 
-A model can rank well and still be badly calibrated. A review that reports
-only the first has quietly left out whether the numbers mean anything, so
-`easypr()` makes you name which one you are pooling.
+You install it from GitHub, and you need nothing else.
 
-The third measure is the other half of the field. Not every prognostic
-review validates a whole model; many pool what a single factor does to risk.
-That is a ratio, pooled on the log scale and read on the ratio scale, and
-easyPR does the transforming so the printed table and the plot axis both
-come back in the units you reported.
+<details>
+<summary><b>Install easyPR</b>: <code>{r install}</code></summary>
 
 ```r
-easypr(cohorts, measure = "ratio")   # reads an HR, OR or RR column
-#> Pooled hazard ratio across 9 studies (REML)
-#>   estimate            1.637
-#>   95% confidence     1.428 to 1.876
-#>   95% prediction     1.280 to 2.094
-#>   tau-squared         0.011  (log scale)
-```
-
-Estimation is delegated to **{metamisc}** (Debray and de Jong), which easyPR
-calls and never second-guesses.
-
-```r
+# Paste the whole block into R.
 # install.packages("remotes")
 remotes::install_github("vanioljantunes/easyPR")
 
 library(easyPR)
 ```
 
+</details>
+
+There is one entry point, `easypr()`, and four functions that take what it
+returns. You will recognise the arguments if you have used **{meta}**: `sm`,
+`studlab`, `method`, `method.tau`, `level` and `common` mean here what they
+mean there. You write `sm = "HR"` where another package would ask you to log
+the ratio, recover its standard error from the interval, and remember which
+scale you were on.
+
+| Function | What it answers | Main arguments |
+|:---|:---|:---|
+| `easypr()` | What is the pooled result? | `data`, `sm`, `studlab`, `method`, `method.tau`, `level`, `common` |
+| `easypr_forest()` | What did each study contribute? | `x`, `order`, `columns`, `prediction`, `xlim`, `main`, `digits` |
+| `easypr_loo()` | Is one study carrying it? | `x`, `main`, `xlab`, `result` |
+| `easypr_metareg()` | Does a study covariate explain the spread? | `x`, `moderator`, `main`, `result` |
+| `easypr_funnel()` | Are the small studies different? | `x`, `main`, `xlab`, `result` |
+
+![The call, its arguments, and the columns each sm puts in the forest](man/figures/api.png)
+
+`sm` takes five values. Three of them pool a prognostic factor and two pool a
+model's performance.
+
+| `sm` | The question it answers | Pooled on |
+|:---|:---|:---|
+| `"HR"`, `"OR"`, `"RR"` | How much does this factor shift risk? | log, read back as a ratio |
+| `"cstat"` | Does the model rank patients correctly? | logit, read back as a c-statistic |
+| `"OE"` | Are the risks it quotes the risks that happen? | log, read back as a ratio |
+
+Estimation is delegated to **{metamisc}** (Debray and de Jong) and
+**{metafor}** (Viechtbauer), which easyPR calls and never second-guesses.
+`method = "Inverse"` is the only pooling available, because these measures
+reach easyPR as an estimate and a standard error. Naming another one is an
+error rather than a silently ignored argument.
+
 ## 2. Prepare the data, then fit it
 
-One row per validation. What each row needs is whatever that paper happened
-to report: the c-statistic with a confidence interval, or with a standard
-error, or neither, leaving the sample size and the events to work back from.
+![Lay the data out one row per study, and let sm choose which columns are read](man/figures/data.png)
+
+One row per study for a factor, one row per validation for a model. What each
+row needs is whatever that paper happened to report: the ratio with a
+confidence interval, or with a standard error, or neither, leaving the counts
+to work back from.
 
 You do not have to rename your columns first. easyPR recognises the common
 spellings and says what it decided they meant.
 
-```r
-data(EuroSCORE, package = "metamisc")
+<details>
+<summary><b>Pool a prognostic factor</b>: <code>{r factor}</code></summary>
 
-fit <- easypr(EuroSCORE, measure = "cstat")
-#> easypr: read c.index as cstat, se.c.index as cstat.se,
-#>         c.index.95CIl as cstat.cilb, n as N, n.events as O.
+```r
+data(Zhang, package = "metamisc")
+
+fit <- easypr(data = Zhang, method.tau = "REML", sm = "HR",
+              method = "Inverse")
 fit
 ```
 
-```
-Pooled c-statistic across 23 validations (REML)
+</details>
 
-  estimate            0.789
-  95% confidence     0.765 to 0.811
-  95% prediction     0.679 to 0.868
-  tau-squared         0.070
-  I-squared           87.3%
+```
+easypr: read HR as effect, HR.025 as effect.cilb, HR.975 as effect.ciub.
+
+Pooled hazard ratio across 20 studies
+Pooling: inverse variance, random effects, REML.
+
+  HR                  2.013
+  95% confidence      1.610 to 2.518
+  95% prediction      1.105 to 3.669
+  tau-squared         0.081  (log scale)
+  I-squared           42.9%
 ```
 
-`summary(fit)` adds the table of validations, with each one's weight.
+Nothing is pooled on the scale it was reported on. A ratio is pooled on the
+log scale, which is where it is symmetric, and read on the ratio scale, which
+is where you live. `tau-squared` is labelled with the scale it belongs to,
+because it is a variance on the pooling scale and never travels back with the
+effect.
+
+`summary(fit)` adds the table of studies, with each one's weight.
 
 ## 3. The forest, and the interval that matters
+
+<details>
+<summary><b>Draw it</b>: <code>{r forest}</code></summary>
 
 ```r
 easypr_forest(fit)
 ```
 
-The confidence interval is about the **average** performance across the
-validations that happened. The prediction interval is what the **next**
-hospital should expect, and it is the one a reader of a prognostic review
-actually needs.
+</details>
 
-On EuroSCORE those two are 0.765 to 0.811 and 0.679 to 0.868. The second is
-roughly three times the width of the first, which is the honest summary: the
-model's discrimination is not settled, and where it is validated next matters
-about as much as the model does.
+![Forest plot of twenty studies of one prognostic factor](man/figures/fig-forest-hr.png)
 
-## 4. Leave one out
+The columns beside the effect are not a style choice. They follow `sm`,
+because they are the quantities that measure is read against: a factor shows
+the sample size, a c-statistic shows the size and the events, an O:E ratio
+shows the observed and the expected count. A column your table does not carry
+is dropped rather than printed as a row of blanks.
+
+The confidence interval is about the **average** effect across the studies
+that happened. The prediction interval is what the **next** study should
+expect, and it is the one a reader of a prognostic review actually needs. It
+is drawn in red through the diamond by default, because a summary without it
+describes the studies you found rather than the patient in front of you.
+
+## 4. A model, not a factor
+
+The same function, a different `sm`. A review of a prediction model has to
+report both halves of its performance, and they can disagree.
+
+<details>
+<summary><b>Discrimination, then calibration</b>: <code>{r model}</code></summary>
 
 ```r
-easypr_loo(fit)
+data(EuroSCORE, package = "metamisc")
+
+fit.c  <- easypr(EuroSCORE, sm = "cstat")
+fit.oe <- easypr(EuroSCORE, sm = "OE")
+
+easypr_forest(fit.c)
+easypr_forest(fit.oe)
 ```
 
-The pool refitted with each validation removed in turn. A pooled performance
-that moves when one study leaves is being carried by that study, and the
-reader is entitled to know which one.
+</details>
 
-## 5. Meta-regression
+![Forest plot of the pooled c-statistic across 23 validations](man/figures/fig-forest-cstat.png)
+
+On these 23 EuroSCORE II validations the summary c-statistic is 0.789, 95 per
+cent confidence 0.765 to 0.811, and the prediction interval is 0.679 to
+0.868. The second is roughly three times the width of the first, which is the
+honest summary: discrimination is not settled, and where the model is
+validated next matters about as much as the model does.
+
+![Forest plot of the observed to expected ratio across 23 validations](man/figures/fig-forest-oe.png)
+
+Calibration is the half most often left out. One is perfect agreement, below
+one the model over-predicts, above one it under-predicts. The summary O:E is
+1.11, which on its own reads as a well calibrated model. The prediction
+interval runs 0.43 to 2.86.
+
+A model can rank patients perfectly and still quote risks that are twice what
+happens. A review that reports only the c-statistic has quietly left out
+whether the numbers mean anything.
+
+![The four companion plots: calibration, leave one out, meta-regression and the funnel](man/figures/plots.png)
+
+## 5. Leave one out
+
+<details>
+<summary><b>Refit without each study</b>: <code>{r loo}</code></summary>
 
 ```r
-easypr_metareg(fit, "mean.age")
+easypr_loo(fit.c)
 ```
+
+</details>
+
+![The pool refitted with each validation omitted in turn](man/figures/fig-loo.png)
+
+The pool refitted with each study removed in turn, sorted, so the one
+carrying the result is at the end of the table rather than somewhere in the
+middle of it. Here the pooled c-statistic runs from 0.787 to 0.797 against
+0.789 with everything in, so nothing is carrying it.
+
+A leave-one-out that moves the summary is a sensitivity analysis you must
+declare. It is not a study you may drop.
+
+## 6. Meta-regression
+
+<details>
+<summary><b>One study-level covariate</b>: <code>{r metareg}</code></summary>
+
+```r
+easypr_metareg(fit.c, "mean.age")
+```
+
+</details>
+
+![Bubble plot of the c-statistic against mean age](man/figures/fig-bubble.png)
 
 Heterogeneity here is usually the interesting part rather than a nuisance.
 The model is being validated in different places on different patients, and
-the question is whether that explains the spread.
+the question is whether that explains the spread. On these validations mean
+age explains none of it, and easyPR reports that rather than inviting you to
+try covariates until one works.
 
-The bubble plot is the honest way to show it, because you can see how few
-studies are carrying each end of the line. The covariate is a property of the
-study, so a slope says that studies differ. It does not say that moving a
-patient along that covariate would move their risk.
+The bubble plot is the honest way to show a regression, because you can see
+how few studies are carrying each end of the line. The covariate is a
+property of the study, so a slope says that studies differ. It does not say
+that moving a patient along that covariate would move their risk.
 
-## 6. Small-study effects
+## 7. Small-study effects
+
+<details>
+<summary><b>Funnel and the asymmetry test</b>: <code>{r funnel}</code></summary>
 
 ```r
-easypr_funnel(fit)
+easypr_funnel(fit.c)
 ```
+
+</details>
+
+![Funnel plot of the validations with the test of asymmetry](man/figures/fig-funnel.png)
 
 Asymmetry is read with more care here than in a treatment review. Small
 validations are not only more variable, they are often done in a different
 kind of centre, so a gap on one side can be case mix rather than suppression.
-easyPR reports the test and prints the caveat with it, and says so plainly
-when there are too few studies for the test to carry weight.
+easyPR runs the test metamisc recommends for the measure, reports it, and
+says plainly when there are too few studies for it to carry weight.
 
 ## References
 
@@ -160,6 +270,9 @@ meta-analysis of prediction model performance. *BMJ* 2017;356:i6460.
 
 Riley RD, Ensor J, Snell KIE, et al. External validation of clinical
 prediction models using big datasets. *BMJ* 2016;353:i3140.
+
+Viechtbauer W. Conducting meta-analyses in R with the metafor package.
+*Journal of Statistical Software* 2010;36(3):1-48.
 
 ## Licence
 

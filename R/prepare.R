@@ -1,16 +1,14 @@
-# Getting one estimate and one standard error per validation.
+# Getting one estimate and one standard error per study.
 #
-# Validation studies report performance in whatever form their journal asked
-# for. One gives the c-statistic with a confidence interval, the next gives it
-# with a standard error, a third gives neither and leaves you the sample size
-# and the number of events to work back from. The same is true of calibration:
-# sometimes the O:E ratio, sometimes the observed and expected counts, and
-# sometimes only the proportions.
+# Prognostic studies report what they report. One gives the c-statistic with a
+# confidence interval, the next gives it with a standard error, a third gives
+# neither and leaves you the sample size and the number of events to work back
+# from. The same is true of calibration, and of a hazard ratio.
 #
 # metamisc::ccalc() and metamisc::oecalc() already know how to reconcile
 # those, so easyPR's job is to hand them the columns they want and to fail
 # with a sentence a reader can act on when the table cannot support the
-# measure that was asked for.
+# summary measure that was asked for.
 
 #' @keywords internal
 #' @noRd
@@ -19,9 +17,95 @@ pr_stop <- function(...) {
   # slide, so it is wrapped at the width the rest of the output uses rather
   # than running off the right of the window as one line.
   msg <- paste0("easypr: ", paste0(..., collapse = ""))
-  stop(paste(strwrap(msg, width = 72, exdent = 2), collapse = "
-"),
+  stop(paste(strwrap(msg, width = 72, exdent = 2), collapse = "\n"),
        call. = FALSE)
+}
+
+# The summary measure decides everything downstream.
+#
+# `sm` is the {meta} spelling, and it means here what it means there: the
+# measure the studies reported. It picks which columns are read, which scale
+# the pooling happens on, what the axis of a forest says, and which columns
+# that forest carries beside the effect. Nothing else in easyPR asks the
+# caller to choose any of those separately.
+
+#' @keywords internal
+#' @noRd
+PR_SM <- list(
+  HR    = list(kind = "ratio", label = "hazard ratio", unit = "HR",
+               scale = "log",   null = 1,
+               what = "study", cols = c(N = "N")),
+  OR    = list(kind = "ratio", label = "odds ratio", unit = "OR",
+               scale = "log",   null = 1,
+               what = "study", cols = c(N = "N")),
+  RR    = list(kind = "ratio", label = "risk ratio", unit = "RR",
+               scale = "log",   null = 1,
+               what = "study", cols = c(N = "N")),
+  cstat = list(kind = "cstat", label = "c-statistic", unit = "c",
+               scale = "logit", null = NA_real_,
+               what = "validation", cols = c(N = "N", Events = "O")),
+  OE    = list(kind = "OE",    label = "O:E ratio", unit = "O:E",
+               scale = "log",   null = 1,
+               what = "validation", cols = c(Observed = "O", Expected = "E"))
+)
+
+#' The summary measures easypr() accepts
+#' @keywords internal
+#' @noRd
+PR_SM_NAMES <- names(PR_SM)
+
+#' Look one up, and refuse an unknown one by name
+#' @keywords internal
+#' @noRd
+pr_sm <- function(sm) {
+  if (!is.character(sm) || length(sm) != 1L) {
+    pr_stop("`sm` must be one of ", paste(PR_SM_NAMES, collapse = ", "), ".")
+  }
+  hit <- PR_SM_NAMES[tolower(PR_SM_NAMES) == tolower(sm)]
+  if (length(hit) == 0L) {
+    pr_stop("`sm = \"", sm, "\"` is not a measure easyPR pools. Use one of: ",
+            paste(PR_SM_NAMES, collapse = ", "), ". \"HR\", \"OR\" and ",
+            "\"RR\" pool a prognostic factor; \"cstat\" and \"OE\" pool a ",
+            "model's discrimination and its calibration.")
+  }
+  c(PR_SM[[hit]], list(sm = hit))
+}
+
+# One scale inside, the reader's scale outside.
+#
+# metamisc hands back two different scales at once: ccalc() and oecalc() give
+# the per-study estimate as the study reported it, while valmeta() pools the
+# c-statistic on the logit scale and the O:E ratio on the log scale and
+# reports the summary back on the reported one. Keeping both inside easyPR is
+# what let tau-squared be exponentiated with the effect once already.
+#
+# So everything inside the result object is on the scale the pooling happened
+# on, and the back-transform is applied once, at the moment a number is shown.
+
+#' @keywords internal
+#' @noRd
+pr_fwd <- function(scale) {
+  switch(scale, log = log, logit = stats::qlogis, identity)
+}
+
+#' @keywords internal
+#' @noRd
+pr_bwd <- function(scale) {
+  switch(scale, log = exp, logit = stats::plogis, identity)
+}
+
+#' The plural of whatever `sm` calls one row
+#'
+#' A prognostic factor is pooled across studies and a model across
+#' validations, and "20 studys" is the kind of thing a reader notices before
+#' they notice the estimate.
+#'
+#' @keywords internal
+#' @noRd
+pr_plural <- function(what, n = 2L) {
+  if (n == 1L) return(what)
+  if (identical(what, "study")) return("studies")
+  paste0(what, "s")
 }
 
 #' Columns of `data` that a measure can be built from
@@ -32,34 +116,35 @@ PR_COLS <- list(
             "sd.LP"),
   OE    = c("OE", "OE.se", "OE.cilb", "OE.ciub", "N", "O", "E", "Po", "Pe",
             "citl", "citl.se"),
-  ratio = c("effect", "effect.se", "effect.cilb", "effect.ciub")
+  ratio = c("effect", "effect.se", "effect.cilb", "effect.ciub", "N", "O")
 )
 
-#' Build the per-study table for one measure
+#' Build the per-study table for one summary measure
 #'
 #' The returned frame always has `studlab`, `est` and `se`, whatever the input
-#' reported, so every plot downstream can be written against those three.
+#' reported, so every plot downstream can be written against those three. The
+#' columns the forest shows beside the effect ride along with it.
 #'
 #' @keywords internal
 #' @noRd
-pr_prepare <- function(data, measure, studlab = NULL) {
-  if (!is.data.frame(data)) pr_stop("`data` must be a data frame of validations.")
-  measure <- match.arg(measure, c("cstat", "OE", "ratio"))
-  data <- pr_map(data, measure)
-  if (measure == "ratio") return(pr_prepare_ratio(data, studlab))
+pr_prepare <- function(data, sm, studlab = NULL) {
+  if (!is.data.frame(data)) pr_stop("`data` must be a data frame of studies.")
+  spec <- pr_sm(sm)
+  data <- pr_map(data, spec)
+  if (spec$kind == "ratio") return(pr_prepare_ratio(data, spec, studlab))
 
-  have <- intersect(PR_COLS[[measure]], names(data))
+  have <- intersect(PR_COLS[[spec$kind]], names(data))
   if (length(have) == 0L) {
-    pr_stop("none of the columns ", measure, " can be built from are in `data`. ",
-            "For measure = \"", measure, "\" easyPR looks for: ",
-            paste(PR_COLS[[measure]], collapse = ", "), ".")
+    pr_stop("none of the columns ", spec$sm, " can be built from are in ",
+            "`data`. For sm = \"", spec$sm, "\" easyPR looks for: ",
+            paste(PR_COLS[[spec$kind]], collapse = ", "), ".")
   }
 
   slab <- pr_slab(data, studlab)
   args <- c(list(data = data, slab = slab), stats::setNames(
     lapply(have, function(cl) as.name(cl)), have))
 
-  calc <- if (measure == "cstat") metamisc::ccalc else metamisc::oecalc
+  calc <- if (spec$kind == "cstat") metamisc::ccalc else metamisc::oecalc
   out  <- do.call(calc, args)
 
   tab <- data.frame(
@@ -70,19 +155,65 @@ pr_prepare <- function(data, measure, studlab = NULL) {
     upper   = as.numeric(out$theta.ciub),
     stringsAsFactors = FALSE
   )
+  # ccalc() and oecalc() report on the scale the study reported. The pooling
+  # happens on another one, so the table is moved onto it here and every
+  # number in the package from this point on is on the pooling scale.
+  tab <- pr_to_scale(tab, spec$scale)
+  tab <- pr_side_columns(tab, data, spec)
   usable <- is.finite(tab$est) & is.finite(tab$se) & tab$se > 0
   if (!any(usable)) {
-    pr_stop("no validation in `data` ended up with both an estimate and a ",
-            "standard error for ", measure, ". Check that the columns hold ",
+    pr_stop("no ", spec$what, " in `data` ended up with both an estimate and ",
+            "a standard error for ", spec$sm, ". Check that the columns hold ",
             "numbers rather than text.")
   }
   if (any(!usable)) {
-    message("easypr: ", sum(!usable), " of ", nrow(tab),
-            " validations could not be used, because ", measure,
+    message("easypr: ", sum(!usable), " of ", nrow(tab), " ",
+            pr_plural(spec$what), " could not be used, because ", spec$sm,
             " could not be reconstructed from what they reported.")
   }
   attr(tab, "dropped") <- tab$studlab[!usable]
   tab[usable, , drop = FALSE]
+}
+
+#' Move a per-study table onto the scale the pooling happens on
+#'
+#' The standard error travels with it, by the delta method: a c-statistic of
+#' 0.80 with a standard error of 0.02 is a logit of 1.386 with a standard
+#' error of 0.125, and weighting the studies on the wrong one of those two
+#' gives the wrong pooled answer rather than a differently labelled one.
+#'
+#' @keywords internal
+#' @noRd
+pr_to_scale <- function(tab, scale) {
+  if (identical(scale, "identity")) return(tab)
+  f <- pr_fwd(scale)
+  # d(logit p)/dp = 1 / (p (1 - p));  d(log x)/dx = 1 / x
+  slope <- switch(scale,
+                  logit = 1 / (tab$est * (1 - tab$est)),
+                  log   = 1 / tab$est,
+                  rep(1, nrow(tab)))
+  tab$se    <- tab$se * slope
+  tab$est   <- f(tab$est)
+  tab$lower <- f(tab$lower)
+  tab$upper <- f(tab$upper)
+  tab
+}
+
+#' The columns the forest shows beside the effect
+#'
+#' `sm` decides which ones those are, and a table that does not carry them is
+#' not an error: the forest simply drops the column rather than printing a
+#' row of NA.
+#'
+#' @keywords internal
+#' @noRd
+pr_side_columns <- function(tab, data, spec) {
+  for (nm in names(spec$cols)) {
+    src <- spec$cols[[nm]]
+    v <- if (src %in% names(data)) data[[src]] else NULL
+    tab[[nm]] <- if (is.null(v)) rep(NA_real_, nrow(tab)) else as.numeric(v)
+  }
+  tab
 }
 
 #' Study labels, from the column named or from the row names
@@ -146,6 +277,28 @@ PR_ALIAS <- list(
                   "HR.975", "OR.975", "RR.975", "ucl", "UCL", "upper.CI")
 )
 
+#' The aliases to try, with the ones named after `sm` first
+#'
+#' A sheet that holds both an odds ratio and a hazard ratio is ordinary in a
+#' prognostic review. Asking for `sm = "HR"` should read the hazard ratio,
+#' not whichever column happens to come first in the alias list, so the
+#' measure the caller named is tried before anything else.
+#'
+#' @keywords internal
+#' @noRd
+pr_alias_for <- function(canon, spec) {
+  base <- PR_ALIAS[[canon]]
+  if (spec$kind != "ratio") return(base)
+  sm <- spec$sm
+  first <- switch(canon,
+                  effect      = c(sm, tolower(sm)),
+                  effect.se   = paste0(c("se.", "se"), sm),
+                  effect.cilb = paste0(sm, c(".025", ".cilb", ".lower")),
+                  effect.ciub = paste0(sm, c(".975", ".ciub", ".upper")),
+                  character(0))
+  unique(c(first, base))
+}
+
 #' Rename what the table has to what valmeta expects
 #'
 #' Returns the data frame with canonical names added, and reports the mapping
@@ -153,12 +306,12 @@ PR_ALIAS <- list(
 #'
 #' @keywords internal
 #' @noRd
-pr_map <- function(data, measure, quiet = FALSE) {
-  wanted <- PR_COLS[[measure]]
+pr_map <- function(data, spec, quiet = FALSE) {
+  wanted <- PR_COLS[[spec$kind]]
   found  <- character(0)
   for (canon in wanted) {
     if (canon %in% names(data)) { found[canon] <- canon; next }
-    hit <- intersect(PR_ALIAS[[canon]], names(data))
+    hit <- intersect(pr_alias_for(canon, spec), names(data))
     if (length(hit) > 0L) {
       data[[canon]] <- data[[hit[1L]]]
       found[canon]  <- hit[1L]
@@ -184,23 +337,18 @@ pr_map <- function(data, measure, quiet = FALSE) {
 
 #' @keywords internal
 #' @noRd
-pr_prepare_ratio <- function(data, studlab) {
+pr_prepare_ratio <- function(data, spec, studlab) {
   slab <- pr_slab(data, studlab)
-  # the column it was read from names the measure, so a hazard ratio is
-  # labelled a hazard ratio rather than "ratio"
-  src  <- attr(data, "pr_found")[["effect"]]
-  nm   <- c(HR = "hazard ratio", hr = "hazard ratio", OR = "odds ratio",
-            or = "odds ratio", RR = "risk ratio", rr = "risk ratio")[src]
-  if (is.na(nm) || is.null(nm)) nm <- "ratio"
   eff  <- as.numeric(data[["effect"]])
-  if (all(is.na(eff))) {
-    pr_stop("measure = \"ratio\" needs an `effect` column holding the hazard, ",
-            "odds or risk ratio. Recognised spellings: ",
-            paste(PR_ALIAS$effect, collapse = ", "), ".")
+  if (length(eff) == 0L || all(is.na(eff))) {
+    pr_stop("sm = \"", spec$sm, "\" needs a column holding the ", spec$label,
+            " itself. Recognised spellings: ",
+            paste(pr_alias_for("effect", spec), collapse = ", "), ".")
   }
   if (any(eff <= 0, na.rm = TRUE)) {
-    pr_stop("a ratio cannot be zero or negative, and ", sum(eff <= 0, na.rm = TRUE),
-            " row(s) are. Give the ratio itself, not its logarithm.")
+    pr_stop("a ", spec$label, " cannot be zero or negative, and ",
+            sum(eff <= 0, na.rm = TRUE), " row(s) are. Give the ratio ",
+            "itself, not its logarithm.")
   }
   yi <- log(eff)
   col <- function(nm) {
@@ -216,10 +364,10 @@ pr_prepare_ratio <- function(data, studlab) {
   se[is.na(se)] <- from_ci[is.na(se)]
   if (all(is.na(se))) {
     pr_stop("every study is missing both a standard error and a confidence ",
-            "interval for the ratio, so there is nothing to weight them by. ",
-            "Recognised interval columns: ",
-            paste(c(PR_ALIAS$effect.cilb, PR_ALIAS$effect.ciub),
-                  collapse = ", "), ".")
+            "interval for the ", spec$label, ", so there is nothing to ",
+            "weight them by. Recognised interval columns: ",
+            paste(c(pr_alias_for("effect.cilb", spec),
+                    pr_alias_for("effect.ciub", spec)), collapse = ", "), ".")
   }
 
   tab <- data.frame(studlab = as.character(slab), est = yi, se = se,
@@ -227,11 +375,11 @@ pr_prepare_ratio <- function(data, studlab) {
                     stringsAsFactors = FALSE)
   tab$lower[is.na(tab$lower)] <- tab$est[is.na(tab$lower)] - 1.96 * tab$se[is.na(tab$lower)]
   tab$upper[is.na(tab$upper)] <- tab$est[is.na(tab$upper)] + 1.96 * tab$se[is.na(tab$upper)]
+  tab <- pr_side_columns(tab, data, spec)
   usable <- is.finite(tab$est) & is.finite(tab$se) & tab$se > 0
   if (!any(usable)) {
-    pr_stop("no study has both a ratio and something to get its standard ",
-            "error from.")
+    pr_stop("no study has both a ", spec$label, " and something to get its ",
+            "standard error from.")
   }
-  attr(tab, "effect_label") <- unname(nm)
   tab[usable, , drop = FALSE]
 }

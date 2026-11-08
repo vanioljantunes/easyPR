@@ -1,0 +1,103 @@
+/* The sheet the tutorial pages are screenshotted from. One stylesheet, so the
+   four pictures in the README cannot drift apart. */
+:root {
+  --navy: #1F2A44;
+  --red: #C0392B;
+  --blue: #4E7CA8;
+  --green: #3F7A5E;
+  --grey: #8A939B;
+  --band: #EDEFF2;
+  --line: #C5C9CE;
+  --paper: #FFFFFF;
+  --page: #F4F1EC;
+  --muted: #5B6475;
+  --code-bg: #F7F8FA;
+  --serif: Georgia, "Times New Roman", Times, serif;
+  --sans: "Segoe UI", Arial, Helvetica, sans-serif;
+  --mono: Consolas, "Cascadia Mono", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--navy);
+       font-family: var(--sans); }
+.sheet { width: 1200px; margin: 20px auto; background: var(--paper);
+         border: 1px solid var(--line); }
+
+header { padding: 32px 48px 24px; text-align: center;
+         border-bottom: 1px solid var(--line); }
+header h1 { font-family: var(--serif); font-size: 36px; margin: 0 0 6px; }
+header p { margin: 0; font-family: var(--serif); font-size: 17.5px;
+           color: var(--muted); }
+
+section.step { padding: 26px 48px 30px; border-bottom: 1px solid var(--line); }
+section.step:last-of-type { border-bottom: none; }
+.step-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+             background: var(--band); margin-left: -48px; margin-right: -48px;
+             padding: 11px 48px; }
+.num { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--navy);
+       background: #fff; display: flex; align-items: center; justify-content: center;
+       font-weight: 700; font-size: 18px; flex: none; }
+.step-head h2 { font-family: var(--serif); font-size: 24px; margin: 0; }
+.step-head .mono { font-family: var(--mono); font-size: 21px; }
+
+p.note { font-size: 14.5px; line-height: 1.55; color: var(--muted);
+         margin: 0 0 14px; }
+p.note code { font-family: var(--mono); color: var(--navy); }
+p.note b { color: var(--navy); }
+p.note:last-child { margin-bottom: 0; }
+
+pre.code { margin: 0; background: var(--code-bg); border: 1px solid var(--line);
+           border-left: 4px solid var(--navy); padding: 13px 16px;
+           font-family: var(--mono); font-size: 13.5px; line-height: 1.55;
+           color: var(--navy); white-space: pre; overflow: hidden; }
+.c { color: #7A8391; font-style: italic; }
+.f { font-weight: 700; }
+.s { color: var(--red); }
+.a { color: var(--blue); }
+
+.console { margin: 0; background: #fff; border: 1px dashed var(--grey);
+           padding: 11px 14px; font-family: var(--mono); font-size: 12.5px;
+           line-height: 1.5; white-space: pre; overflow: hidden; }
+.console .hl { background: #FFF4CC; font-weight: 700; }
+.console .dim { color: var(--grey); }
+
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.g2.wide { grid-template-columns: 1.15fr 0.85fr; }
+.g2.narrow { grid-template-columns: 0.85fr 1.15fr; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+h3 { font-family: var(--serif); font-size: 17.5px; margin: 0 0 9px; }
+
+figure.plotcard { border: 1px solid var(--line); padding: 8px; background: #fff;
+                  margin: 0; }
+figure.plotcard img { width: 100%; display: block; }
+figure.plotcard figcaption { font-family: var(--serif); font-size: 13px;
+                             color: var(--muted); text-align: center;
+                             padding-top: 6px; }
+
+.warn { border: 1px solid var(--red); background: #FDF3F2; padding: 12px 15px;
+        font-size: 14px; line-height: 1.55; }
+.warn b { color: var(--red); }
+.warn code { font-family: var(--mono); color: var(--navy); }
+
+.good { border: 1px solid var(--green); background: #F2F7F4; padding: 12px 15px;
+        font-size: 14px; line-height: 1.55; }
+.good b { color: var(--green); }
+.good code { font-family: var(--mono); color: var(--navy); }
+
+table.lab { border-collapse: collapse; width: 100%; font-size: 13.5px;
+            margin-top: 4px; }
+table.lab th { background: var(--navy); color: #fff; padding: 7px 10px;
+               text-align: left; font-size: 13px; }
+table.lab td { padding: 6px 10px; border-bottom: 1px solid var(--band);
+               vertical-align: top; }
+table.lab td.l { font-family: var(--mono); color: var(--red); font-weight: 700;
+                 white-space: nowrap; }
+table.lab td.m { font-family: var(--mono); color: var(--navy);
+                 white-space: nowrap; }
+
+ul.plain { margin: 0 0 12px; padding-left: 18px; font-size: 14.5px;
+           line-height: 1.6; color: var(--muted); }
+ul.plain b { color: var(--navy); }
+ul.plain code { font-family: var(--mono); color: var(--navy); }
+
+footer { padding: 16px 48px 20px; font-size: 13px; color: var(--muted);
+         font-family: var(--serif); text-align: center; }

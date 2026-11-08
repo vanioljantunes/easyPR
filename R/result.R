@@ -1,24 +1,31 @@
 #' @export
 print.easypr_result <- function(x, digits = 3, ...) {
-  unit <- if (isTRUE(x$log)) "studies" else "validations"
-  cat("Pooled ", x$label, " across ", x$k, " ", unit, " (",
-      x$method, ")\n\n", sep = "")
-  # a ratio was pooled on the log scale, so it is exponentiated to print
-  b <- if (isTRUE(x$log)) exp else identity
+  unit <- pr_plural(x$what, x$k)
+  cat("Pooled ", x$label, " across ", x$k, " ", unit, "\n", sep = "")
+  cat("Pooling: inverse variance, random effects, ",
+      x$method.tau, ".\n\n", sep = "")
+  # everything inside the object is on the pooling scale, so this is the one
+  # place the reader's scale is restored
+  b <- pr_bwd(x$scale)
   f <- function(v) formatC(b(v), format = "f", digits = digits)
-  cat("  estimate            ", f(x$estimate), "\n", sep = "")
-  cat("  ", round(100 * x$level), "% confidence     ", f(x$ci.lb), " to ",
-      f(x$ci.ub), "\n", sep = "")
+  pad <- function(s) formatC(s, width = -20)
+  cat("  ", pad(x$unit), f(x$estimate), "\n", sep = "")
+  cat("  ", pad(paste0(round(100 * x$level), "% confidence")),
+      f(x$ci.lb), " to ", f(x$ci.ub), "\n", sep = "")
   if (is.finite(x$pi.lb)) {
-    cat("  ", round(100 * x$level), "% prediction     ", f(x$pi.lb), " to ",
-        f(x$pi.ub), "\n", sep = "")
+    cat("  ", pad(paste0(round(100 * x$level), "% prediction")),
+        f(x$pi.lb), " to ", f(x$pi.ub), "\n", sep = "")
+  }
+  if (isTRUE(x$common)) {
+    cat("  ", pad("fixed effect"), f(x$fixed$estimate), " (",
+        f(x$fixed$ci.lb), " to ", f(x$fixed$ci.ub), ")\n", sep = "")
   }
   # tau-squared is a variance on the scale the pooling happened on, so it is
   # never exponentiated even when the effect is
-  cat("  tau-squared         ",
+  cat("  ", pad("tau-squared"),
       formatC(x$tau2, format = "f", digits = digits),
-      if (isTRUE(x$log)) "  (log scale)" else "", "\n", sep = "")
-  cat("  I-squared           ", formatC(x$I2, format = "f", digits = 1),
+      "  (", x$scale, " scale)\n", sep = "")
+  cat("  ", pad("I-squared"), formatC(x$I2, format = "f", digits = 1),
       "%\n\n", sep = "")
   cat(strwrap(pr_reading(x), width = 76), sep = "\n")
   invisible(x)
@@ -26,7 +33,7 @@ print.easypr_result <- function(x, digits = 3, ...) {
 
 #' The sentence the numbers are for
 #'
-#' A pooled c-statistic with a wide prediction interval is the common result
+#' A pooled performance with a wide prediction interval is the common result
 #' in this literature and the one most often reported as if it were narrow,
 #' so the print method says which interval to read rather than leaving it to
 #' be inferred.
@@ -35,17 +42,17 @@ print.easypr_result <- function(x, digits = 3, ...) {
 #' @noRd
 pr_reading <- function(x) {
   if (!is.finite(x$pi.lb)) {
-    return(paste0("Too few validations for a prediction interval. The ",
+    return(paste0("Too few ", pr_plural(x$what), " for a prediction interval. The ",
                   "confidence interval below is about the average, not ",
-                  "about the next hospital."))
+                  "about the next one."))
   }
   wide <- (x$pi.ub - x$pi.lb) > 2 * (x$ci.ub - x$ci.lb)
-  what <- if (isTRUE(x$log)) "effect" else "performance"
+  what <- if (identical(x$measure, "ratio")) "effect" else "performance"
   base <- paste0("The confidence interval is about the average ", what, ". ",
-                 "The prediction interval is what a new validation should ",
-                 "expect, and it is the one to quote.")
+                 "The prediction interval is what a new ", x$what,
+                 " should expect, and it is the one to quote.")
   if (!wide) return(base)
-  tail <- if (isTRUE(x$log))
+  tail <- if (identical(x$measure, "ratio"))
     " Here it is much the wider of the two, so the effect is not settled: where the next study is run matters as much as the factor."
   else
     " Here it is much the wider of the two, so the model's performance is not settled: where it is next validated matters as much as the model."
@@ -61,10 +68,9 @@ summary.easypr_result <- function(object, ...) {
 #' @export
 print.summary.easypr_result <- function(x, digits = 3, ...) {
   print(x$result, digits = digits)
-  cat("\n\nPer ", if (isTRUE(x$result$log)) "study" else "validation",
-      "\n\n", sep = "")
+  cat("\n\nPer ", x$result$what, "\n\n", sep = "")
   t <- x$table
-  bb <- if (isTRUE(x$result$log)) exp else identity
+  bb <- pr_bwd(x$result$scale)
   out <- data.frame(
     Study = t$studlab,
     Estimate = formatC(bb(t$est), format = "f", digits = digits),
@@ -73,6 +79,12 @@ print.summary.easypr_result <- function(x, digits = 3, ...) {
     Weight = paste0(formatC(100 * pr_weights(t), format = "f", digits = 1), "%"),
     check.names = FALSE
   )
+  # the columns sm asked for sit beside the effect, as they do in the forest
+  for (nm in names(x$result$columns)) {
+    if (nm %in% names(t) && any(is.finite(t[[nm]]))) {
+      out[[nm]] <- format(t[[nm]])
+    }
+  }
   print(out, row.names = FALSE)
   invisible(x)
 }

@@ -1,75 +1,125 @@
-#' Pool the performance of a prognostic model across its validations
+#' Pool a prognostic meta-analysis
 #'
-#' One call takes a table of external validations and the measure you are
-#' pooling, and returns the pooled performance with its heterogeneity and a
-#' prediction interval.
+#' One call takes a table of studies and the summary measure they reported,
+#' and returns the pooled result with its heterogeneity and a prediction
+#' interval.
 #'
-#' Which measure you ask for is a question about the model, not about the
-#' data. `"cstat"` pools discrimination: can the model tell who is at higher
-#' risk from who is at lower risk. `"OE"` pools calibration-in-the-large: are
-#' the risks it quotes the risks that actually happen. The two can point in
-#' different directions, and a review that reports only the first is quietly
-#' leaving out whether the numbers mean anything.
+#' `sm` is the only argument you must give thought to, and it is a question
+#' about the review rather than about the spreadsheet. `"HR"`, `"OR"` and
+#' `"RR"` pool what one **prognostic factor** does to risk. `"cstat"` pools a
+#' **model's** discrimination: can it tell who is at higher risk from who is
+#' at lower risk. `"OE"` pools that model's calibration-in-the-large: are the
+#' risks it quotes the risks that actually happen. Discrimination and
+#' calibration can point in different directions, and a review that reports
+#' only the first is quietly leaving out whether the numbers mean anything.
 #'
 #' The prediction interval is the one to read. A confidence interval says
-#' where the average performance sits; a prediction interval says what the
-#' next hospital should expect when they run the model on their own patients,
-#' which is the question a reader of a prognostic review actually has.
+#' where the average sits; a prediction interval says what the next setting
+#' should expect, which is the question a reader of a prognostic review
+#' actually has.
 #'
-#' Estimation is `metamisc::valmeta()`. easyPR works out each study's estimate
-#' and standard error first, from whichever quantities it reported, so the
-#' same call works whether the papers gave confidence intervals, standard
-#' errors, or only counts.
+#' You will recognise the arguments if you have used **{meta}**: `sm`,
+#' `studlab`, `method`, `method.tau`, `level`, `common` and `random` mean here
+#' what they mean there. easyPR works out each study's estimate and standard
+#' error first, from whichever quantities it reported, so the same call works
+#' whether the papers gave confidence intervals, standard errors, or only
+#' counts.
 #'
-#' @param data A data frame, one row per validation.
-#' @param measure `"cstat"` for the c-statistic, `"OE"` for the
-#'   observed-to-expected ratio.
+#' @param data A data frame, one row per study or per validation.
+#' @param sm The summary measure: `"HR"`, `"OR"` or `"RR"` for a prognostic
+#'   factor, `"cstat"` for a model's discrimination, `"OE"` for its
+#'   calibration.
 #' @param studlab Column of `data` holding the study labels, or a vector of
 #'   them. Left alone, easyPR looks for a `Study` column.
-#' @param method Pooling method passed to `metamisc::valmeta()`, `"REML"` by
+#' @param method Pooling method. `"Inverse"`, inverse-variance weighting, is
+#'   the only one available for these measures, and anything else is refused
+#'   by name rather than ignored.
+#' @param method.tau Estimator for the between-study variance, `"REML"` by
 #'   default.
 #' @param level Width of the confidence and prediction intervals.
-#' @param ... Passed on to `metamisc::valmeta()`.
+#' @param common,random Which models to report. The random-effects model is
+#'   the one easyPR prints; `common = TRUE` adds the fixed-effect estimate
+#'   beside it.
+#' @param ... Passed on to the estimator.
 #'
 #' @return An object of class `easypr_result`: a list with the pooled
 #'   `estimate`, its interval, the prediction interval, `tau2`, `I2`, the
-#'   per-study `table`, and the `valmeta` fit it came from.
+#'   per-study `table`, and the fit it came from.
 #'
 #' @examples
 #' \donttest{
 #' data(EuroSCORE, package = "metamisc")
-#' fit <- easypr(EuroSCORE, measure = "cstat")
+#' fit <- easypr(EuroSCORE, sm = "cstat")
 #' fit
 #' }
 #' @export
-easypr <- function(data, measure = c("cstat", "OE", "ratio"), studlab = NULL,
-                   method = "REML", level = 0.95, ...) {
-  measure <- match.arg(measure)
+easypr <- function(data,
+                   sm = "HR",
+                   studlab = NULL,
+                   method = "Inverse",
+                   method.tau = "REML",
+                   level = 0.95,
+                   common = FALSE,
+                   random = TRUE,
+                   ...) {
+  spec <- pr_sm(sm)
+  pr_check_method(method)
   if (!is.numeric(level) || length(level) != 1L || level <= 0 || level >= 1) {
     pr_stop("`level` must be a single number between 0 and 1; got ",
             paste(format(level), collapse = ", "), ".")
   }
+  if (!isTRUE(random)) {
+    pr_stop("`random = FALSE` is not available: a prognostic review is ",
+            "summarised by a random-effects model and its prediction ",
+            "interval. Use `common = TRUE` to see the fixed-effect estimate ",
+            "beside it.")
+  }
 
-  tab  <- pr_prepare(data, measure, studlab)
+  tab  <- pr_prepare(data, spec$sm, studlab)
   slab <- pr_slab(data, studlab)
+
+  if (spec$kind == "ratio") {
+    fit <- metafor::rma(yi = tab$est, sei = tab$se, method = method.tau,
+                        slab = tab$studlab, ...)
+    return(pr_result_ratio(fit, tab, spec, method, method.tau, level, common,
+                           data))
+  }
 
   # valmeta takes the reported columns, not a pre-computed estimate: it does
   # its own reconciling internally and the argument names are the column
   # names, so the call is assembled from whichever ones `data` actually has.
-  if (measure == "ratio") {
-    fit <- metafor::rma(yi = tab$est, sei = tab$se, method = method,
-                        slab = tab$studlab, ...)
-    return(pr_result_ratio(fit, tab, method, level, data))
-  }
-
-  data <- pr_map(data, measure, quiet = TRUE)
-  have <- intersect(PR_COLS[[measure]], names(data))
-  args <- c(list(measure = measure, data = data, method = method, slab = slab),
+  data <- pr_map(data, spec, quiet = TRUE)
+  have <- intersect(PR_COLS[[spec$kind]], names(data))
+  args <- c(list(measure = spec$kind, data = data, method = method.tau,
+                 slab = slab),
             stats::setNames(lapply(have, as.name), have), list(...))
   fit  <- do.call(metamisc::valmeta, args)
 
-  out <- pr_result(fit, tab, measure, method, level, data)
-  out
+  pr_result(fit, tab, spec, method, method.tau, level, common, data)
+}
+
+#' Only one pooling method exists for these measures
+#'
+#' {meta} offers Mantel-Haenszel, Peto and the rest because it pools raw
+#' counts. Here the input is already an estimate and its standard error, so
+#' inverse-variance weighting is the only thing that can be done with it. A
+#' caller who names another one is told that, rather than having their
+#' argument quietly ignored.
+#'
+#' @keywords internal
+#' @noRd
+pr_check_method <- function(method) {
+  if (!is.character(method) || length(method) != 1L) {
+    pr_stop("`method` must be \"Inverse\".")
+  }
+  if (!identical(tolower(method), "inverse")) {
+    pr_stop("`method = \"", method, "\"` is not available. These measures ",
+            "reach easyPR as an estimate and a standard error, so ",
+            "inverse-variance weighting is the only pooling there is: use ",
+            "`method = \"Inverse\"`. The between-study variance estimator is ",
+            "`method.tau`, which does take several values.")
+  }
+  invisible(TRUE)
 }
 
 #' Assemble what the caller actually reads
@@ -81,29 +131,62 @@ easypr <- function(data, measure = c("cstat", "OE", "ratio"), studlab = NULL,
 #'
 #' @keywords internal
 #' @noRd
-pr_result <- function(fit, tab, measure, method, level, data) {
-  est <- tryCatch(as.numeric(fit$est), error = function(e) NA_real_)
-  cil <- tryCatch(as.numeric(fit$ci.lb), error = function(e) NA_real_)
-  ciu <- tryCatch(as.numeric(fit$ci.ub), error = function(e) NA_real_)
-  pil <- tryCatch(as.numeric(fit$pi.lb), error = function(e) NA_real_)
-  piu <- tryCatch(as.numeric(fit$pi.ub), error = function(e) NA_real_)
+pr_result <- function(fit, tab, spec, method, method.tau, level, common,
+                      data) {
+  # valmeta reports the summary on the scale the studies reported, and pools
+  # it on another one. The table beside it is already on the pooling scale,
+  # so the summary is moved onto it too and the whole object is then on one
+  # scale, with the back-transform applied once when a number is printed.
+  f   <- pr_fwd(spec$scale)
+  num <- function(v) tryCatch(f(as.numeric(v)), error = function(e) NA_real_)
+  est <- num(fit$est)
+  cil <- num(fit$ci.lb)
+  ciu <- num(fit$ci.ub)
+  pil <- num(fit$pi.lb)
+  piu <- num(fit$pi.ub)
   tau2 <- tryCatch(as.numeric(fit$fit$tau2), error = function(e) NA_real_)
   i2   <- tryCatch(as.numeric(fit$fit$I2), error = function(e) NA_real_)
   if (length(i2) == 0L || is.na(i2)) i2 <- pr_i2(tab$est, tab$se, tau2)
 
-  structure(list(
-    measure   = measure,
-    label     = if (measure == "cstat") "c-statistic" else "O:E ratio",
-    method    = method,
-    level     = level,
-    k         = nrow(tab),
-    estimate  = est, ci.lb = cil, ci.ub = ciu,
-    pi.lb     = pil, pi.ub = piu,
-    tau2      = tau2, I2 = i2,
-    table     = tab,
-    fit       = fit,
-    data      = data
-  ), class = "easypr_result")
+  structure(c(pr_common_fields(spec, method, method.tau, level, common, tab),
+              list(estimate = est, ci.lb = cil, ci.ub = ciu,
+                   pi.lb = pil, pi.ub = piu,
+                   tau2 = tau2, I2 = i2,
+                   fixed = pr_fixed(tab),
+                   fit = fit, data = data)),
+            class = "easypr_result")
+}
+
+#' The fields every result carries, whichever estimator produced it
+#' @keywords internal
+#' @noRd
+pr_common_fields <- function(spec, method, method.tau, level, common, tab) {
+  list(sm         = spec$sm,
+       measure    = spec$kind,
+       label      = spec$label,
+       unit       = spec$unit,
+       scale      = spec$scale,
+       null       = spec$null,
+       what       = spec$what,
+       columns    = spec$cols,
+       log        = identical(spec$scale, "log"),
+       method     = method,
+       method.tau = method.tau,
+       level      = level,
+       common     = isTRUE(common),
+       k          = nrow(tab),
+       table      = tab)
+}
+
+#' The fixed-effect estimate, for a caller who asked to see it beside
+#' @keywords internal
+#' @noRd
+pr_fixed <- function(tab) {
+  w  <- 1 / tab$se^2
+  mu <- sum(w * tab$est) / sum(w)
+  se <- sqrt(1 / sum(w))
+  z  <- stats::qnorm(0.975)
+  list(estimate = mu, ci.lb = mu - z * se, ci.ub = mu + z * se)
 }
 
 #' I-squared from the study variances, when the fit did not report one
@@ -123,8 +206,11 @@ pr_i2 <- function(est, se, tau2) {
   max(0, min(100, v))
 }
 
+#' @keywords internal
+#' @noRd
+`%||%` <- function(a, b) if (is.null(a) || is.na(a)) b else a
 
-#' The ratio measure's result, back on the ratio scale
+#' The ratio measures' result
 #'
 #' Everything downstream works on the log scale, because that is where the
 #' pooling happens and where a symmetric interval belongs. Only the printed
@@ -133,24 +219,16 @@ pr_i2 <- function(est, se, tau2) {
 #'
 #' @keywords internal
 #' @noRd
-`%||%` <- function(a, b) if (is.null(a) || is.na(a)) b else a
-
-#' @keywords internal
-#' @noRd
-pr_result_ratio <- function(fit, tab, method, level, data) {
-  z  <- stats::qnorm(1 - (1 - level) / 2)
-  mu <- as.numeric(fit$b)
+pr_result_ratio <- function(fit, tab, spec, method, method.tau, level, common,
+                            data) {
+  z   <- stats::qnorm(1 - (1 - level) / 2)
+  mu  <- as.numeric(fit$b)
   pse <- sqrt(as.numeric(fit$tau2) + as.numeric(fit$se)^2)
-  structure(list(
-    measure  = "ratio",
-    label    = attr(tab, "effect_label") %||% "ratio",
-    log      = TRUE,
-    method   = method,
-    level    = level,
-    k        = nrow(tab),
-    estimate = mu, ci.lb = fit$ci.lb, ci.ub = fit$ci.ub,
-    pi.lb    = mu - z * pse, pi.ub = mu + z * pse,
-    tau2     = as.numeric(fit$tau2), I2 = as.numeric(fit$I2),
-    table    = tab, fit = fit, data = data
-  ), class = "easypr_result")
+  structure(c(pr_common_fields(spec, method, method.tau, level, common, tab),
+              list(estimate = mu, ci.lb = fit$ci.lb, ci.ub = fit$ci.ub,
+                   pi.lb = mu - z * pse, pi.ub = mu + z * pse,
+                   tau2 = as.numeric(fit$tau2), I2 = as.numeric(fit$I2),
+                   fixed = pr_fixed(tab),
+                   fit = fit, data = data)),
+            class = "easypr_result")
 }

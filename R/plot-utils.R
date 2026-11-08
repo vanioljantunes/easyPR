@@ -90,12 +90,12 @@ pr_unique_labels <- function(x) {
 #'
 #' @keywords internal
 #' @noRd
-pr_back <- function(x) if (isTRUE(x$log)) exp else identity
+pr_back <- function(x) pr_bwd(x$scale)
 
 #' @keywords internal
 #' @noRd
 pr_scale_x <- function(x) {
-  if (isTRUE(x$log)) {
+  if (identical(x$scale, "log")) {
     # doubling breaks, not natural-log ones: a reader of a ratio axis expects
     # 0.5, 1, 2, 4, not 0.37, 1, 2.7, 7.4
     ggplot2::scale_x_continuous(
@@ -110,8 +110,4 @@ pr_scale_x <- function(x) {
 #' Where the null sits, if there is one
 #' @keywords internal
 #' @noRd
-pr_null_at <- function(x) {
-  if (isTRUE(x$log)) return(1)
-  if (identical(x$measure, "OE")) return(1)
-  NA_real_
-}
+pr_null_at <- function(x) if (is.finite(x$null)) x$null else NA_real_

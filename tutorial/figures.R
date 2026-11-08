@@ -1,0 +1,44 @@
+# Writes every figure the README and the tutorial sheets show.
+#
+#   Rscript tutorial/figures.R
+#
+# The data is metamisc's own, so a reader can paste any block of the README
+# into a fresh session and get the picture that is printed beside it. Nothing
+# here depends on a spreadsheet only the author has.
+
+library(easyPR)
+
+out <- file.path("man", "figures")
+dir.create(out, recursive = TRUE, showWarnings = FALSE)
+
+data(Zhang, package = "metamisc")
+data(EuroSCORE, package = "metamisc")
+
+# A prognostic factor. Zhang holds hazard ratios for one marker, with the
+# interval rather than the standard error, which is how most papers leave it.
+fit.hr <- easypr(data = Zhang, method.tau = "REML", sm = "HR",
+                 method = "Inverse")
+easypr_forest(fit.hr, result = FALSE, file.name = "fig-forest-hr",
+              path = out)
+
+# A whole model, validated 23 times. Discrimination first.
+fit.c <- easypr(EuroSCORE, sm = "cstat")
+easypr_forest(fit.c, result = FALSE, file.name = "fig-forest-cstat",
+              path = out)
+
+# Then calibration, which is the half a review most often leaves out.
+fit.oe <- easypr(EuroSCORE, sm = "OE")
+easypr_forest(fit.oe, result = FALSE, file.name = "fig-forest-oe",
+              path = out)
+
+# Is one validation carrying the pooled discrimination?
+easypr_loo(fit.c, result = FALSE, file.name = "fig-loo", path = out)
+
+# Does where it was validated explain the spread?
+easypr_metareg(fit.c, "mean.age", result = FALSE, file.name = "fig-bubble",
+               path = out)
+
+# And are the small validations different from the large ones?
+easypr_funnel(fit.c, result = FALSE, file.name = "fig-funnel", path = out)
+
+cat("\nfigures written to ", out, "\n", sep = "")

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>easyPR plots</title>
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <h1>Four questions, four pictures</h1>
+    <p>Every one of them takes the fitted object and nothing else</p>
+  </header>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">1</div>
+      <h2>Calibration, the half that gets left out</h2>
+    </div>
+
+    <div class="g2 wide">
+      <div>
+        <figure class="plotcard">
+          <img src="../man/figures/fig-forest-oe.png" alt="Forest plot of the observed to expected ratio across 23 validations">
+          <figcaption>easypr_forest() on an O:E fit. The columns are the
+          observed and the expected count, because those are what an O:E
+          ratio is read against.</figcaption>
+        </figure>
+      </div>
+      <div>
+<pre class="code">fit.oe &lt;- <span class="f">easypr</span>(EuroSCORE, <span class="a">sm</span> = <span class="s">"OE"</span>)
+
+<span class="f">easypr_forest</span>(fit.oe)</pre>
+        <p class="note" style="margin-top:12px">
+          One is perfect agreement. Below one the model over-predicts, above
+          one it under-predicts.
+        </p>
+        <div class="warn">
+          <b>The average is not the answer.</b><br><br>
+          Here the summary O:E is 1.11, and a reader could stop there and
+          call the model well calibrated. The prediction interval runs 0.43
+          to 2.86. Calibration can be good on average and very poor in a
+          particular hospital, which is the thing a reader needs to know.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">2</div>
+      <h2>Is one study carrying it?</h2>
+    </div>
+
+    <div class="g2 narrow">
+      <div>
+<pre class="code"><span class="f">easypr_loo</span>(fit.c)</pre>
+        <p class="note" style="margin-top:12px">
+          The pool refitted with each study removed in turn, and sorted, so
+          the one carrying the result is at the end of the table rather than
+          somewhere in the middle of it.
+        </p>
+        <p class="note">
+          On these 23 validations the pooled c-statistic runs from 0.787 to
+          0.797, against 0.789 with everything in. Nothing is carrying it,
+          and that is the finding to report.
+        </p>
+        <div class="warn">
+          <b>A leave-one-out is not a filter.</b><br><br>
+          A study that moves the summary is a sensitivity analysis you must
+          declare. It is not a study you may drop.
+        </div>
+      </div>
+      <div>
+        <figure class="plotcard">
+          <img src="../man/figures/fig-loo.png" alt="Leave one out plot, one refit per row">
+          <figcaption>One row per refit, over the pooled estimate and its
+          interval.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <div class="step-head">
+      <div class="num">3</div>
+      <h2>Does anything explain the spread?</h2>
+    </div>
+
+    <div class="g2">
+      <div>
+        <figure class="plotcard">
+          <img src="../man/figures/fig-bubble.png" alt="Bubble plot of the c-statistic against mean age">
+          <figcaption>easypr_metareg(fit.c, "mean.age"). The bubbles are
+          sized by weight, so you can see how few studies carry each end of
+          the line.</figcaption>
+        </figure>
+      </div>
+      <div>
+        <figure class="plotcard">
+          <img src="../man/figures/fig-funnel.png" alt="Funnel plot of the validations with the asymmetry test">
+          <figcaption>easypr_funnel(fit.c), with the test metamisc
+          recommends for that measure printed into the subtitle.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:14px">
+      Heterogeneity in a prognostic review is usually the interesting part
+      rather than a nuisance: the model is being validated in different
+      places on different patients. On these validations mean age explains
+      none of it, and that is reported rather than replaced with a covariate
+      that works.
+    </p>
+
+    <div class="warn" style="margin-top:4px">
+      <b>Two things the pictures will not say.</b><br><br>
+      A meta-regression slope is a property of studies, not of patients: it
+      does not mean that a patient who ages five years moves along it.
+      Funnel asymmetry has several causes, and small validations are often
+      done in a different kind of centre, so a gap on one side can be case
+      mix rather than suppression.
+    </div>
+  </section>
+
+  <footer>
+    Every figure writes itself to a file when you name one, and reports the
+    size it wrote, so the picture on your slide is the file the code made.
+  </footer>
+
+</div>
+</body>
+</html>
