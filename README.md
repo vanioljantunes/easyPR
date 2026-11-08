@@ -61,9 +61,9 @@ scale you were on.
 
 | Function | What it answers | Main arguments |
 |:---|:---|:---|
-| `easypr()` | What is the pooled result? | `data`, `sm`, `studlab`, `method`, `method.tau`, `level`, `common` |
-| `easypr_forest()` | What did each study contribute? | `x`, `order`, `columns`, `prediction`, `xlim`, `main`, `digits` |
-| `easypr_loo()` | Is one study carrying it? | `x`, `main`, `xlab`, `result` |
+| `easypr()` | What is the pooled result? | `data`, `sm`, `studlab`, `method`, `method.tau`, `method.ci`, `level`, `common` |
+| `easypr_forest()` | What did each study contribute? | `x`, `label.e`, `label.c`, `direction`, `order`, `columns`, `prediction`, `xlim`, `digits` |
+| `easypr_loo()` | Is one study carrying it? | `x`, `order`, `xlab`, `result` |
 | `easypr_metareg()` | Does a study covariate explain the spread? | `x`, `moderator`, `main`, `result` |
 | `easypr_funnel()` | Are the small studies different? | `x`, `main`, `xlab`, `result` |
 
@@ -113,13 +113,14 @@ fit
 easypr: read HR as effect, HR.025 as effect.cilb, HR.975 as effect.ciub.
 
 Pooled hazard ratio across 20 studies
-Pooling: inverse variance, random effects, REML.
+Pooling: inverse variance, random effects, REML, Knapp-Hartung interval.
 
   HR                  2.013
-  95% confidence      1.610 to 2.518
-  95% prediction      1.105 to 3.669
+  95% confidence      1.591 to 2.547
+  95% prediction      1.106 to 3.665
   tau-squared         0.081  (log scale)
   I-squared           42.9%
+  test of effect      t = 6.23, p < 0.001
 ```
 
 Nothing is pooled on the scale it was reported on. A ratio is pooled on the
@@ -127,6 +128,11 @@ log scale, which is where it is symmetric, and read on the ratio scale, which
 is where you live. `tau-squared` is labelled with the scale it belongs to,
 because it is a variance on the pooling scale and never travels back with the
 effect.
+
+`method.ci` decides how the interval around the pooled estimate is built.
+The default, `"t"`, is the Knapp-Hartung adjustment, which the prognosis
+handbook recommends and which matters most when there are few studies.
+`method.ci = "z"` gives the normal interval instead.
 
 `summary(fit)` adds the table of studies, with each one's weight.
 
@@ -136,7 +142,9 @@ effect.
 <summary><b>Draw it</b>: <code>{r forest}</code></summary>
 
 ```r
-easypr_forest(fit)
+easypr_forest(fit,
+              label.e = "High expression", label.c = "Low expression",
+              direction = "bad", xlab = "Overall survival")
 ```
 
 </details>
@@ -149,10 +157,20 @@ the sample size, a c-statistic shows the size and the events, an O:E ratio
 shows the observed and the expected count. A column your table does not carry
 is dropped rather than printed as a row of blanks.
 
+`label.e` and `label.c` name the two groups. They head the columns beside
+the study label and they name the two sides of the axis, and `direction`
+decides which side is which: `"bad"`, the usual case in prognosis, means a
+ratio above one favours the second group.
+
+Over the scale sits the line saying how the interval was built, how the
+between-study variance was estimated, and what is being pooled. Under the
+pooled row sit the test of that pooled effect and the heterogeneity, in that
+order.
+
 The confidence interval is about the **average** effect across the studies
 that happened. The prediction interval is what the **next** study should
 expect, and it is the one a reader of a prognostic review actually needs. It
-is drawn in red through the diamond by default, because a summary without it
+is written in red under the pooled interval, because a summary without it
 describes the studies you found rather than the patient in front of you.
 
 ## 4. A model, not a factor
@@ -209,10 +227,11 @@ easypr_loo(fit.c)
 
 ![The pool refitted with each validation omitted in turn](man/figures/fig-loo.png)
 
-The pool refitted with each study removed in turn, sorted, so the one
-carrying the result is at the end of the table rather than somewhere in the
-middle of it. Here the pooled c-statistic runs from 0.787 to 0.797 against
-0.789 with everything in, so nothing is carrying it.
+Every row is one analysis rather than one study, so it carries that
+analysis's own pooled estimate, interval, heterogeneity and test. The last
+row, in bold, is the analysis with nothing left out, which is what the others
+are read against. Here the pooled c-statistic runs from 0.785 to 0.795
+against 0.789 with everything in, so nothing is carrying it.
 
 A leave-one-out that moves the summary is a sensitivity analysis you must
 declare. It is not a study you may drop.

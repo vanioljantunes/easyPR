@@ -2,8 +2,9 @@
 print.easypr_result <- function(x, digits = 3, ...) {
   unit <- pr_plural(x$what, x$k)
   cat("Pooled ", x$label, " across ", x$k, " ", unit, "\n", sep = "")
-  cat("Pooling: inverse variance, random effects, ",
-      x$method.tau, ".\n\n", sep = "")
+  cat("Pooling: inverse variance, random effects, ", x$method.tau, ", ",
+      if (identical(x$method.ci, "t")) "Knapp-Hartung interval"
+      else "normal interval", ".\n\n", sep = "")
   # everything inside the object is on the pooling scale, so this is the one
   # place the reader's scale is restored
   b <- pr_bwd(x$scale)
@@ -26,7 +27,10 @@ print.easypr_result <- function(x, digits = 3, ...) {
       formatC(x$tau2, format = "f", digits = digits),
       "  (", x$scale, " scale)\n", sep = "")
   cat("  ", pad("I-squared"), formatC(x$I2, format = "f", digits = 1),
-      "%\n\n", sep = "")
+      "%\n", sep = "")
+  cat("  ", pad("test of effect"), x$test$name, " = ",
+      formatC(x$test$stat, format = "f", digits = 2), ", ",
+      pr_p_lab(x$test$p), "\n\n", sep = "")
   cat(strwrap(pr_reading(x), width = 76), sep = "\n")
   invisible(x)
 }

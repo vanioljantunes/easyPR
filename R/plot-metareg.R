@@ -67,6 +67,12 @@ easypr_metareg <- function(x, moderator, main = NULL, xlab = NULL, ylab = NULL,
   if (is.null(xlab)) xlab <- moderator
   if (is.null(ylab)) ylab <- x$label
   if (is.null(main)) main <- paste0(x$label, " against ", moderator)
+  # The regression is fitted and drawn on the pooling scale, where the line
+  # is straight. Only the labels come back, or a c-statistic axis reads 1.0
+  # to 1.5.
+  rng   <- range(c(t$est, line$lo, line$hi), na.rm = TRUE)
+  ticks <- pr_ticks(rng[1], rng[2], x$scale)
+  keep  <- ticks$at >= rng[1] & ticks$at <= rng[2]
 
   p <- ggplot2::ggplot(t, ggplot2::aes(x = mod, y = est)) +
     ggplot2::geom_ribbon(data = line, ggplot2::aes(x = mod, ymin = lo, ymax = hi),
@@ -76,6 +82,8 @@ easypr_metareg <- function(x, moderator, main = NULL, xlab = NULL, ylab = NULL,
     ggplot2::geom_point(ggplot2::aes(size = w), shape = 21, fill = "white",
                         colour = "#1b3a5c", stroke = 0.9) +
     ggplot2::scale_size_continuous(range = c(2, 9), guide = "none") +
+    ggplot2::scale_y_continuous(breaks = ticks$at[keep],
+                                labels = ticks$labels[keep]) +
     ggplot2::labs(x = xlab, y = ylab, title = main,
                   subtitle = pr_metareg_sub(fit)) +
     pr_theme()
@@ -87,9 +95,34 @@ easypr_metareg <- function(x, moderator, main = NULL, xlab = NULL, ylab = NULL,
         "studies and\nnot patients.\n", sep = "")
   }
   spec <- pr_file_spec(file.name, path, filetype, width, height)
-  pr_write(p, spec, width = 7.4, height = 5.4)
-  if (is.null(spec)) print(p)
-  invisible(structure(p, fit = fit))
+  out  <- pr_plot_with_table(p, pr_metareg_table(x, fit, t, moderator), spec,
+                             width = 7.4, height = 5.4)
+  invisible(structure(p, fit = fit, grob = out$grob))
+}
+
+#' The numbers the regression is read with, as a table under it
+#'
+#' The slope stays on the pooling scale, because that is the scale it is a
+#' slope on: a change per unit of the covariate in logits is not a change in
+#' c-statistic, and rounding it onto the reader's scale would invent a
+#' quantity that does not exist.
+#'
+#' @keywords internal
+#' @noRd
+pr_metareg_table <- function(x, fit, t, moderator) {
+  num <- function(v) tryCatch(as.numeric(v)[2], error = function(e) NA_real_)
+  f3  <- function(v) formatC(v, format = "f", digits = 4)
+  data.frame(
+    check.names = FALSE,
+    `Covariate` = moderator,
+    `Studies`   = nrow(t),
+    `Slope`     = f3(num(fit$b)),
+    `95% CI`    = paste0(f3(num(fit$ci.lb)), " to ", f3(num(fit$ci.ub))),
+    `p`         = pr_p(num(fit$pval)),
+    `R2 (%)`    = formatC(as.numeric(fit$R2)[1], format = "f", digits = 1),
+    `Residual I2 (%)` = formatC(as.numeric(fit$I2)[1], format = "f", digits = 1),
+    `Scale`     = x$scale,
+    stringsAsFactors = FALSE)
 }
 
 #' @keywords internal

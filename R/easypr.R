@@ -36,6 +36,10 @@
 #'   by name rather than ignored.
 #' @param method.tau Estimator for the between-study variance, `"REML"` by
 #'   default.
+#' @param method.ci How the interval around the pooled estimate is built.
+#'   `"t"` is the Knapp-Hartung adjustment, which the prognosis handbook
+#'   recommends and which matters most when there are few studies. `"z"` is
+#'   the normal interval.
 #' @param level Width of the confidence and prediction intervals.
 #' @param common,random Which models to report. The random-effects model is
 #'   the one easyPR prints; `common = TRUE` adds the fixed-effect estimate
@@ -58,12 +62,18 @@ easypr <- function(data,
                    studlab = NULL,
                    method = "Inverse",
                    method.tau = "REML",
+                   method.ci = c("t", "z"),
                    level = 0.95,
                    common = FALSE,
                    random = TRUE,
                    ...) {
   spec <- pr_sm(sm)
   pr_check_method(method)
+  method.ci <- match.arg(method.ci)
+  # metamisc applies Knapp-Hartung by default and metafor does not, so the
+  # same call used to produce a t interval for a c-statistic and a z interval
+  # for a hazard ratio. One argument now decides it for every measure.
+  test <- if (identical(method.ci, "t")) "knha" else "z"
   if (!is.numeric(level) || length(level) != 1L || level <= 0 || level >= 1) {
     pr_stop("`level` must be a single number between 0 and 1; got ",
             paste(format(level), collapse = ", "), ".")
@@ -80,9 +90,9 @@ easypr <- function(data,
 
   if (spec$kind == "ratio") {
     fit <- metafor::rma(yi = tab$est, sei = tab$se, method = method.tau,
-                        slab = tab$studlab, ...)
-    return(pr_result_ratio(fit, tab, spec, method, method.tau, level, common,
-                           data))
+                        test = test, slab = tab$studlab, ...)
+    return(pr_result_ratio(fit, tab, spec, method, method.tau, method.ci,
+                           level, common, data))
   }
 
   # valmeta takes the reported columns, not a pre-computed estimate: it does
@@ -91,11 +101,12 @@ easypr <- function(data,
   data <- pr_map(data, spec, quiet = TRUE)
   have <- intersect(PR_COLS[[spec$kind]], names(data))
   args <- c(list(measure = spec$kind, data = data, method = method.tau,
-                 slab = slab),
+                 test = test, slab = slab),
             stats::setNames(lapply(have, as.name), have), list(...))
   fit  <- do.call(metamisc::valmeta, args)
 
-  pr_result(fit, tab, spec, method, method.tau, level, common, data)
+  pr_result(fit, tab, spec, method, method.tau, method.ci, level, common,
+            data)
 }
 
 #' Only one pooling method exists for these measures
@@ -131,8 +142,8 @@ pr_check_method <- function(method) {
 #'
 #' @keywords internal
 #' @noRd
-pr_result <- function(fit, tab, spec, method, method.tau, level, common,
-                      data) {
+pr_result <- function(fit, tab, spec, method, method.tau, method.ci, level,
+                      common, data) {
   # valmeta reports the summary on the scale the studies reported, and pools
   # it on another one. The table beside it is already on the pooling scale,
   # so the summary is moved onto it too and the whole object is then on one
@@ -148,19 +159,36 @@ pr_result <- function(fit, tab, spec, method, method.tau, level, common,
   i2   <- tryCatch(as.numeric(fit$fit$I2), error = function(e) NA_real_)
   if (length(i2) == 0L || is.na(i2)) i2 <- pr_i2(tab$est, tab$se, tau2)
 
-  structure(c(pr_common_fields(spec, method, method.tau, level, common, tab),
+  structure(c(pr_common_fields(spec, method, method.tau, method.ci, level,
+                               common, tab),
               list(estimate = est, ci.lb = cil, ci.ub = ciu,
                    pi.lb = pil, pi.ub = piu,
                    tau2 = tau2, I2 = i2,
+                   test = pr_test(fit$fit),
                    fixed = pr_fixed(tab),
                    fit = fit, data = data)),
             class = "easypr_result")
 }
 
+#' The test of the pooled effect, whichever object carries it
+#'
+#' valmeta keeps the metafor fit in `$fit`, and metafor names the statistic
+#' `zval` whether it is a z or a t. The interval method says which it is.
+#'
+#' @keywords internal
+#' @noRd
+pr_test <- function(f) {
+  num <- function(v) tryCatch(as.numeric(v)[1], error = function(e) NA_real_)
+  list(stat = num(f$zval), p = num(f$pval),
+       name = if (identical(f$test, "z")) "z" else "t",
+       df = num(f$ddf))
+}
+
 #' The fields every result carries, whichever estimator produced it
 #' @keywords internal
 #' @noRd
-pr_common_fields <- function(spec, method, method.tau, level, common, tab) {
+pr_common_fields <- function(spec, method, method.tau, method.ci, level,
+                             common, tab) {
   list(sm         = spec$sm,
        measure    = spec$kind,
        label      = spec$label,
@@ -172,6 +200,7 @@ pr_common_fields <- function(spec, method, method.tau, level, common, tab) {
        log        = identical(spec$scale, "log"),
        method     = method,
        method.tau = method.tau,
+       method.ci  = method.ci,
        level      = level,
        common     = isTRUE(common),
        k          = nrow(tab),
@@ -219,15 +248,17 @@ pr_i2 <- function(est, se, tau2) {
 #'
 #' @keywords internal
 #' @noRd
-pr_result_ratio <- function(fit, tab, spec, method, method.tau, level, common,
-                            data) {
+pr_result_ratio <- function(fit, tab, spec, method, method.tau, method.ci,
+                            level, common, data) {
   z   <- stats::qnorm(1 - (1 - level) / 2)
   mu  <- as.numeric(fit$b)
   pse <- sqrt(as.numeric(fit$tau2) + as.numeric(fit$se)^2)
-  structure(c(pr_common_fields(spec, method, method.tau, level, common, tab),
+  structure(c(pr_common_fields(spec, method, method.tau, method.ci, level,
+                               common, tab),
               list(estimate = mu, ci.lb = fit$ci.lb, ci.ub = fit$ci.ub,
                    pi.lb = mu - z * pse, pi.ub = mu + z * pse,
                    tau2 = as.numeric(fit$tau2), I2 = as.numeric(fit$I2),
+                   test = pr_test(fit),
                    fixed = pr_fixed(tab),
                    fit = fit, data = data)),
             class = "easypr_result")

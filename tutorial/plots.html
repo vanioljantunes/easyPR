@@ -57,13 +57,13 @@
       <div>
 <pre class="code"><span class="f">easypr_loo</span>(fit.c)</pre>
         <p class="note" style="margin-top:12px">
-          The pool refitted with each study removed in turn, and sorted, so
-          the one carrying the result is at the end of the table rather than
-          somewhere in the middle of it.
+          Every row is one analysis rather than one study, so it carries
+          that analysis's own pooled estimate, interval, heterogeneity and
+          test. Sorted, so the study carrying the result is at one end.
         </p>
         <p class="note">
-          On these 23 validations the pooled c-statistic runs from 0.787 to
-          0.797, against 0.789 with everything in. Nothing is carrying it,
+          On these 23 validations the pooled c-statistic runs from 0.785 to
+          0.795, against 0.789 with everything in. Nothing is carrying it,
           and that is the finding to report.
         </p>
         <div class="warn">
@@ -75,8 +75,9 @@
       <div>
         <figure class="plotcard">
           <img src="../man/figures/fig-loo.png" alt="Leave one out plot, one refit per row">
-          <figcaption>One row per refit, over the pooled estimate and its
-          interval.</figcaption>
+          <figcaption>One row per analysis, carrying its own estimate,
+          interval, I-squared and p value, with the untouched analysis in
+          bold at the end.</figcaption>
         </figure>
       </div>
     </div>

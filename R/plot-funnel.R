@@ -40,6 +40,12 @@ easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
 
   if (is.null(xlab)) xlab <- x$label
   if (is.null(main)) main <- paste0("Funnel of the ", pr_plural(x$what), ", ", x$label)
+  # The points and the contours are drawn on the scale the pooling happened
+  # on, because that is where the contours are straight. Only the labels are
+  # moved back, or a c-statistic axis reads 0.0 to 2.5.
+  rng   <- range(c(t$est, bands$lo, bands$hi), na.rm = TRUE)
+  ticks <- pr_ticks(rng[1], rng[2], x$scale)
+  keep  <- ticks$at >= rng[1] & ticks$at <= rng[2]
 
   p <- ggplot2::ggplot() +
     ggplot2::geom_ribbon(data = bands,
@@ -51,15 +57,35 @@ easypr_funnel <- function(x, main = NULL, xlab = NULL, result = TRUE,
     ggplot2::geom_point(data = t, ggplot2::aes(x = est, y = se),
                         size = 2.1, colour = "#1b3a5c") +
     ggplot2::scale_y_reverse() +
+    ggplot2::scale_x_continuous(breaks = ticks$at[keep],
+                                labels = ticks$labels[keep]) +
     ggplot2::labs(x = xlab, y = "Standard error", title = main,
                   subtitle = pr_fat_line(ft, nrow(t), x$what)) +
     pr_theme()
 
   if (result && !is.null(ft)) print(ft)
   spec <- pr_file_spec(file.name, path, filetype, width, height)
-  pr_write(p, spec, width = 7.2, height = 5.4)
-  if (is.null(spec)) print(p)
-  invisible(structure(p, test = ft))
+  out  <- pr_plot_with_table(p, pr_funnel_table(x, t, ft), spec,
+                             width = 7.2, height = 5.4)
+  invisible(structure(p, test = ft, grob = out$grob))
+}
+
+#' The numbers the funnel is read with, as a table under it
+#' @keywords internal
+#' @noRd
+pr_funnel_table <- function(x, t, ft) {
+  b <- pr_bwd(x$scale)
+  g <- function(nm) tryCatch(as.numeric(ft[[nm]])[1], error = function(e) NA_real_)
+  data.frame(
+    check.names = FALSE,
+    `Studies`   = nrow(t),
+    `Pooled`    = formatC(b(x$estimate), format = "f", digits = 3),
+    `Smallest SE` = formatC(min(t$se, na.rm = TRUE), format = "f", digits = 3),
+    `Largest SE`  = formatC(max(t$se, na.rm = TRUE), format = "f", digits = 3),
+    `Test`      = if (is.null(ft)) "not estimable" else "Egger, fixed variance",
+    `Statistic` = if (is.null(ft)) "" else formatC(g("tval"), format = "f", digits = 2),
+    `p`         = if (is.null(ft)) "" else pr_p(g("pval")),
+    stringsAsFactors = FALSE)
 }
 
 #' @keywords internal

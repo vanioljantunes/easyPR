@@ -30,7 +30,8 @@ pr_p_lab <- function(p, digits = 3) {
 #'
 #' @keywords internal
 #' @noRd
-pr_gg_theme <- function(axis = FALSE, axis_text_size = 8) {
+pr_gg_theme <- function(axis = FALSE, axis_text_size = 8,
+                        title_face = "plain") {
   base <- ggplot2::theme_bw() +
     ggplot2::theme(
       axis.title.y    = ggplot2::element_blank(),
@@ -49,7 +50,8 @@ pr_gg_theme <- function(axis = FALSE, axis_text_size = 8) {
     axis.text.x  = ggplot2::element_text(colour = ink, size = axis_text_size),
     axis.ticks.x = ggplot2::element_line(colour = ink, linewidth = 0.4),
     axis.line.x  = ggplot2::element_line(colour = ink, linewidth = 0.4),
-    axis.title.x = ggplot2::element_text(colour = ink, size = 9,
+    axis.title.x = ggplot2::element_text(colour = ink, size = 10,
+                                         face = title_face,
                                          margin = ggplot2::margin(t = 4)),
     axis.ticks.length = grid::unit(3, "pt"))
 }
@@ -75,7 +77,8 @@ pr_zebra <- function(ypos) {
 #' @keywords internal
 #' @noRd
 pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
-                          notes = NULL, cell = 3.0, hdr = 3.2, xlab = " ") {
+                          notes = NULL, colour = NULL, spans = NULL,
+                          span_y = NULL, cell = 3.0, hdr = 3.2, xlab = " ") {
   w <- vapply(seq_along(cols), function(i)
     max(nchar(c(names(cols)[i], as.character(cols[[i]]))), na.rm = TRUE) +
       if (right[i]) 1.5 else 2.5, numeric(1))
@@ -83,9 +86,15 @@ pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
   start <- c(0, utils::head(edge, -1))
   xs    <- ifelse(right, edge, start)
 
+  pick <- function(i) {
+    if (is.null(colour)) return(rep("black", length(ypos)))
+    v <- colour[[i]]
+    if (is.null(v)) rep("black", length(ypos)) else rep_len(v, length(ypos))
+  }
   cells <- do.call(rbind, lapply(seq_along(cols), function(i) data.frame(
     x = xs[i], ypos = ypos, label = as.character(cols[[i]]), face = face,
-    hjust = if (right[i]) 1 else 0, stringsAsFactors = FALSE)))
+    colour = pick(i), hjust = if (right[i]) 1 else 0,
+    stringsAsFactors = FALSE)))
   cells <- cells[!is.na(cells$label) & cells$label != "", , drop = FALSE]
   heads <- data.frame(x = xs, ypos = header_y, label = names(cols),
                       hjust = ifelse(right, 1, 0), stringsAsFactors = FALSE)
@@ -94,17 +103,36 @@ pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
     zebra +
     ggplot2::geom_text(ggplot2::aes(x = .data$x, label = .data$label,
                                     fontface = .data$face,
+                                    colour = I(.data$colour),
                                     hjust = .data$hjust), size = cell) +
     ggplot2::geom_text(data = heads,
                        ggplot2::aes(x = .data$x, label = .data$label,
                                     hjust = .data$hjust),
                        fontface = "bold", size = hdr)
+
+  # A span names the group its columns belong to, the way {meta} heads the
+  # experimental and the control columns, and it is underlined so a reader
+  # can see how far it reaches.
+  for (sp in spans) {
+    i0 <- min(sp$cols); i1 <- max(sp$cols)
+    mid <- (start[i0] + edge[i1]) / 2
+    p <- p +
+      ggplot2::annotate("text", x = mid, y = span_y, label = sp$label,
+                        fontface = "bold", size = hdr) +
+      ggplot2::annotate("segment", y = span_y - 0.42, yend = span_y - 0.42,
+                        x = start[i0] + 0.01, xend = edge[i1] - 0.01,
+                        linewidth = 0.4, colour = "grey35")
+  }
   for (n in notes) {
     p <- p + ggplot2::annotate("text", x = 0, y = n$y, label = n$label,
-                               hjust = 0, size = cell)
+                               hjust = 0, size = cell,
+                               colour = if (is.null(n$colour)) "black" else n$colour)
   }
   p +
-    ggplot2::coord_cartesian(xlim = c(0, 1), ylim = ylim) +
+    # A note is longer than the column it starts in, and the panel is sized
+    # by its columns rather than by the note, so the note is allowed to run
+    # past the edge of the panel instead of widening it.
+    ggplot2::coord_cartesian(xlim = c(0, 1), ylim = ylim, clip = "off") +
     ggplot2::labs(x = xlab) +
     pr_gg_theme(axis = FALSE)
 }
@@ -112,17 +140,10 @@ pr_text_panel <- function(cols, right, ypos, face, header_y, ylim, zebra,
 #' Width of a text panel in inches, from the characters it has to hold
 #' @keywords internal
 #' @noRd
-pr_panel_width <- function(cols, per_char = 0.070, min_in = 1.2,
-                           notes = NULL) {
+pr_panel_width <- function(cols, per_char = 0.070, min_in = 1.2) {
   chars <- sum(vapply(seq_along(cols), function(i)
     max(nchar(c(names(cols)[i], as.character(cols[[i]]))), na.rm = TRUE) + 2,
     numeric(1)))
-  # A note is written across the whole panel, so a long one sets the width on
-  # its own rather than running off the edge.
-  if (length(notes) > 0L) {
-    chars <- max(chars, max(nchar(vapply(notes, function(n) n$label,
-                                         character(1)))) + 2)
-  }
   max(min_in, per_char * chars)
 }
 
@@ -297,4 +318,54 @@ pr_end_file <- function(con) {
           format(round(con$width, 2)), " x ", format(round(con$height, 2)),
           " inches)")
   invisible(con$spec$file)
+}
+
+#' A bordered table of numbers, drawn under a plot
+#'
+#' A figure that carries its own summary can be read on its own, which a
+#' figure whose numbers live only in the caption cannot. The funnel and the
+#' bubble plot both get one.
+#'
+#' @keywords internal
+#' @noRd
+pr_stats_grob <- function(df, base_size = 9) {
+  tt <- gridExtra::ttheme_minimal(
+    base_size = base_size,
+    core    = list(fg_params = list(hjust = 0.5, x = 0.5),
+                   bg_params = list(fill = c("white", "grey97"),
+                                    col = "grey60", lwd = 0.6)),
+    colhead = list(fg_params = list(fontface = "bold", hjust = 0.5, x = 0.5),
+                   bg_params = list(fill = "grey90", col = "grey60",
+                                    lwd = 0.6)))
+  gridExtra::tableGrob(df, rows = NULL, theme = tt)
+}
+
+#' How tall a grob actually is, in points
+#'
+#' Guessing a table's height from its row count gets it wrong as soon as the
+#' padding or the font changes, and the band then overlaps the plot above it.
+#' The grob knows, so it is asked.
+#'
+#' @keywords internal
+#' @noRd
+pr_grob_height <- function(g, pad = 26) {
+  h <- try(pr_measure(grid::convertHeight(sum(g$heights), "points",
+                                          valueOnly = TRUE)), silent = TRUE)
+  if (inherits(h, "try-error") || !is.finite(h)) h <- 110
+  grid::unit(h + pad, "points")
+}
+
+#' Draw a plot with a centred table of its own numbers underneath
+#'
+#' @keywords internal
+#' @noRd
+pr_plot_with_table <- function(p, df, spec, width, height) {
+  tbl  <- pr_stats_grob(df)
+  th   <- pr_grob_height(tbl)
+  tot  <- height + pr_height_in(th)
+  con  <- pr_begin_file(spec, width, tot)
+  on.exit(pr_end_file(con), add = TRUE)
+  g <- pr_draw_stack(ggplot2::ggplotGrob(p), body_h = NULL, footer = tbl,
+                     footer_h = th)
+  invisible(list(grob = g, width = width, height = tot))
 }

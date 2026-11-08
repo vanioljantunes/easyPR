@@ -119,14 +119,16 @@ fit &lt;- <span class="f">easypr</span>(<span class="a">data</span> = ma$zhang,
       <tr>
         <td class="l">easypr_forest()</td>
         <td>One row per study, with the columns <code>sm</code> chose, the
-            pooled diamond, and the prediction interval drawn through it.</td>
+            pooled diamond, and the prediction interval written in red under
+            the pooled interval.</td>
         <td>Hide the prediction interval. It is drawn by default, because it
             is the one to quote.</td>
       </tr>
       <tr>
         <td class="l">easypr_loo()</td>
-        <td>The pool refitted with each study left out in turn, sorted, so
-            the one carrying the result is at the end.</td>
+        <td>The same figure, one row per analysis: each refit's own
+            estimate, interval, heterogeneity and test, with the untouched
+            analysis in bold at the end.</td>
         <td>Suggest that the study which moves it should be dropped.</td>
       </tr>
       <tr>
@@ -171,13 +173,15 @@ fit</pre>
         HR.975 as effect.ciub.
 
 Pooled hazard ratio across 20 studies
-Pooling: inverse variance, random effects, REML.
+Pooling: inverse variance, random effects, REML,
+Knapp-Hartung interval.
 
   HR                  2.013
-  95% confidence      1.610 to 2.518
-<span class="hl">  95% prediction      1.105 to 3.669</span>
+  95% confidence      1.591 to 2.547
+<span class="hl">  95% prediction      1.106 to 3.665</span>
   tau-squared         0.081  (log scale)
   I-squared           42.9%
+  test of effect      t = 6.23, p &lt; 0.001
 
 The confidence interval is about the average effect.
 The prediction interval is what a new study should
@@ -189,8 +193,8 @@ expect, and it is the one to quote.</div>
       <img src="../man/figures/fig-forest-hr.png" alt="Forest plot of twenty studies of one prognostic factor">
       <figcaption>The same fit as a forest. The columns beside the effect are
       the ones <span style="font-family:Consolas,monospace">sm</span> chose,
-      the axis is a ratio ladder, and the red bar through the diamond is the
-      prediction interval.</figcaption>
+      the groups head them, and the axis is a ratio ladder named on both
+      sides.</figcaption>
     </figure>
   </section>
 

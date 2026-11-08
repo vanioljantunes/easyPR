@@ -18,8 +18,13 @@ data(EuroSCORE, package = "metamisc")
 # interval rather than the standard error, which is how most papers leave it.
 fit.hr <- easypr(data = Zhang, method.tau = "REML", sm = "HR",
                  method = "Inverse")
-easypr_forest(fit.hr, result = FALSE, file.name = "fig-forest-hr",
-              path = out)
+# label.e and label.c name the groups: they head the columns beside the
+# study label and they name the two sides of the axis. direction = "bad"
+# because death is the outcome, so a ratio above one favours the other group.
+easypr_forest(fit.hr, result = FALSE,
+              label.e = "High expression", label.c = "Low expression",
+              direction = "bad", xlab = "Overall survival",
+              file.name = "fig-forest-hr", path = out)
 
 # A whole model, validated 23 times. Discrimination first.
 fit.c <- easypr(EuroSCORE, sm = "cstat")
