@@ -188,15 +188,26 @@ pr_forest_draw <- function(plan, lab_cols, lab_just,
   diamonds <- plan[plan$kind %in% c("pooled", "summary") & has_est, ,
                    drop = FALSE]
 
+  # The reference lines belong to the rows, not to the figure, so they are
+  # drawn as segments that start at the top of the first study row and stop
+  # at the bottom of the last one. A full-height line would run up through
+  # the headers and down through the notes.
+  rule_top <- max(plan$y) + 0.5
+  rule_bot <- min(plan$y) - 0.5
+
   p <- ggplot2::ggplot() + zebra
   if (is.finite(null_at)) {
-    p <- p + ggplot2::geom_vline(xintercept = null_at, colour = "grey25",
-                                 linewidth = 0.4)
+    p <- p + ggplot2::annotate("segment", x = null_at, xend = null_at,
+                               y = rule_bot, yend = rule_top,
+                               colour = "grey25", linewidth = 0.4)
   }
   if (nrow(diamonds) > 0L) {
-    p <- p + ggplot2::geom_vline(xintercept = diamonds$est[nrow(diamonds)],
-                                 linetype = "dashed", colour = "grey40",
-                                 linewidth = 0.4)
+    p <- p + ggplot2::annotate("segment",
+                               x = diamonds$est[nrow(diamonds)],
+                               xend = diamonds$est[nrow(diamonds)],
+                               y = rule_bot, yend = rule_top,
+                               linetype = "dashed", colour = "grey40",
+                               linewidth = 0.4)
   }
   if (nrow(squares) > 0L) {
     squares$size <- 1.4 + 3.4 * sqrt(squares$weight /

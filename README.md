@@ -281,6 +281,12 @@ says plainly when there are too few studies for it to carry weight.
 
 ## References
 
+Riley RD, Moons KGM, Snell KIE, et al., editors. *Cochrane Handbook for
+Systematic Reviews of Prognosis Studies*. Cochrane Prognosis Methods Group.
+<https://methods.cochrane.org/prognosis/handbook>. The chapters on model
+performance are where the three measures easyPR pools, and the reasons for
+quoting the prediction interval, come from.
+
 Debray TPA, de Jong VMT. *metamisc: Meta-Analysis of Diagnosis and Prognosis
 Research Studies*. R package.
 

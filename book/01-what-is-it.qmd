@@ -1,13 +1,357 @@
 # What it is, goals and examples
 
-::: {.callout-warning}
-Draft. The section structure below is fixed and matches class 4.3 of the
-Meta-Analysis Academy sequence. The prose is being written.
+```{r}
+#| include: false
+suppressMessages({
+  library(meta)
+})
+knitr::opts_chunk$set(collapse = FALSE, comment = "", fig.align = "center")
+# Measured, not guessed: the output column fits 69 monospace characters at
+# this font size. R gets a little less, and wraps its own columns, which keeps
+# them aligned. Never let CSS wrap this text: alignment is the information.
+options(width = 66)
+her2 <- read.csv("data/her2-endometrial.csv")
+euro <- read.csv("data/euroscore2.csv")
+```
+
+A prognostic meta-analysis pools studies that forecast a future outcome. The
+question is not whether a treatment works. It is what will happen to people who
+are already in a given health state, and how much knowing one more thing about
+them today changes what we should expect tomorrow.
+
+That difference, from effect of an intervention to forecast of an outcome,
+decides everything else: which studies are eligible, which number is extracted
+from each one, which scale it is pooled on, and which sentence may be written in
+the discussion. Let us start by looking at what such a review produces, and only
+then name the parts.
+
+Two published data sets carry every example in this book. The first is the review
+by @zhang2015 of HER2 as a prognostic factor in endometrial cancer, twenty
+studies with a hazard ratio each. The second is the EuroSCORE II model for death
+after cardiac surgery, its development study and twenty-two external validations,
+assembled by @guida2014. Both ship with the book in `data/`, and nothing in these
+pages is drawn by hand.
+
+## What a prognostic meta-analysis is
+
+A prognosis study follows people forward. It starts at a **startpoint**, a moment
+that is the same for everyone entering the study, such as the day of diagnosis or
+the day of surgery. It then waits for a fixed **prediction horizon**, thirty days
+or five years, and records whether the outcome happened.
+
+Those two words are the whole design. Imagine two studies of the same cancer,
+both reporting a hazard ratio for the same marker. One starts the clock at
+diagnosis, the other at the end of first-line treatment. They are not estimating
+the same quantity, and pooling them produces a number that describes neither.
+The Cochrane handbook makes the longitudinal relationship between a startpoint
+and a later outcome the defining feature of all prognosis research
+[@cochrane-prognosis-ch2].
+
+Within that frame, the mechanics are the mechanics of any meta-analysis. We take
+one estimate per study, with its standard error, transform it to a scale on which
+it is approximately normal, and pool it by inverse variance. Let us do that with
+the twenty HER2 studies.
+
+```{r}
+#| label: fig-her2
+#| fig-cap: "Twenty studies of HER2 and survival in endometrial cancer, pooled on the log hazard ratio scale. Data from Zhang and colleagues (2015)."
+#| fig-width: 9
+#| fig-height: 6
+her2$TE   <- log(her2$HR)
+her2$seTE <- (log(her2$HR.975) - log(her2$HR.025)) / 3.92
+
+m_her2 <- metagen(TE, seTE, studlab = Study, data = her2, sm = "HR",
+                  method.tau = "REML", method.random.ci = "HK",
+                  prediction = TRUE)
+
+forest(m_her2, layout = "RevMan5", common = FALSE,
+       leftcols = c("studlab", "N", "effect.ci"),
+       leftlabs = c("Study", "n", "HR [95% CI]"),
+       prediction = TRUE, col.diamond = "black")
+```
+
+The plot looks like every forest plot we have ever drawn, and that is the point
+worth making early. What makes this a prognosis review is not the arithmetic. It
+is what the rows mean.
+
+```{r}
+c(HR = exp(m_her2$TE.random),
+  lower = exp(m_her2$lower.random),
+  upper = exp(m_her2$upper.random),
+  tau2 = m_her2$tau2)
+```
+
+We see that the summary hazard ratio is about 2.0, with a 95% confidence interval
+running from roughly 1.6 to 2.6. Patients whose tumour overexpresses HER2 die at
+about twice the rate of those whose tumour does not. No treatment was given, no
+arms were compared, and nothing here says that HER2 causes the deaths. The marker
+earns its place by predicting, not by explaining.
+
+::: {.callout-note}
+The scale matters more than it does in an intervention review, because prognosis
+estimates arrive in more flavours. Hazard ratios are pooled as logs, proportions
+as logits, c-statistics as logits, and the observed-to-expected ratio as a log.
+Chapter 4 gives the full table; for now it is enough to know that every estimate
+is transformed before it is pooled, and transformed back before it is read.
 :::
 
-## What this chapter covers
+## Three types, three questions
 
-Placeholder. One H2 is one slide, so this structure is also the deck outline,
-and every section carries its own figure the way easyDR chapter 1 does.
+The handbook splits prognosis research into three types, following the PROGRESS
+framework [@cochrane-prognosis-ch1]. Every decision in the rest of this book
+depends on which of the three the review is, so let us meet them with the data in
+front of us.
+
+**Overall prognosis** asks what happens on average. It pools absolute risks, not
+comparisons. From the EuroSCORE II cohorts we can ask the plainest possible
+question: how often do patients die within thirty days of cardiac surgery?
+
+```{r}
+m_risk <- metaprop(event = round(Po * n), n = n, studlab = Study, data = euro,
+                   sm = "PLOGIT", method = "Inverse", method.tau = "REML",
+                   prediction = TRUE)
+
+round(c(risk = plogis(m_risk$TE.random),
+        lower = plogis(m_risk$lower.random),
+        upper = plogis(m_risk$upper.random)), 4)
+```
+
+About four deaths per hundred operations, with a narrow interval around it. That
+number has no comparator in it at all, which is exactly what makes it an overall
+prognosis estimate.
+
+**Prognostic factor research** asks whether knowing one characteristic changes
+the forecast. The HER2 analysis above is a factor review: one variable, measured
+at the startpoint, and its association with a later outcome. The estimate of
+interest is usually the **adjusted** one, because a factor only earns its keep if
+it adds something to the variables a clinician already has.
+
+**Prediction model research** asks how well a whole multivariable model forecasts
+for one individual. EuroSCORE II is such a model. Its validations do not report a
+hazard ratio at all; they report how well the model separated survivors from
+deaths, and how close its predicted risks were to the observed ones.
+
+```{r}
+euro$cl <- log(euro$c.index / (1 - euro$c.index))
+se_delta <- euro$se.c.index / (euro$c.index * (1 - euro$c.index))
+se_ci <- (log(euro$c.index.95CIu / (1 - euro$c.index.95CIu)) -
+          log(euro$c.index.95CIl / (1 - euro$c.index.95CIl))) / 3.92
+euro$secl <- ifelse(is.na(se_delta), se_ci, se_delta)
+
+m_c <- metagen(cl, secl, studlab = Study, data = euro,
+               method.tau = "REML", method.random.ci = "HK",
+               prediction = TRUE)
+
+round(plogis(c(c_statistic = m_c$TE.random,
+               lower = m_c$lower.random,
+               upper = m_c$upper.random)), 3)
+```
+
+A summary c-statistic of 0.79. The Cochrane handbook reports 0.79 with a
+confidence interval of 0.77 to 0.81 for this same set of validations
+[@cochrane-prognosis-ch11], so a dozen lines of code have reproduced a published
+result.
+
+A fourth type exists, **predictors of treatment effect**, which asks whether a
+characteristic changes how well a treatment works. That is a question about
+treatment-covariate interaction, and the handbook names it in Chapter 1 and then
+leaves it outside its scope [@cochrane-prognosis-ch1]. This book does the same.
+
+::: {.callout-important}
+**One review, one type.** The three types have different eligibility criteria,
+different extraction forms, different appraisal tools and different reporting
+guidelines. A protocol that has not decided which type it is cannot specify any
+of them, which is why Chapter 2 starts with this decision and not with a search
+string.
+:::
+
+## What it never answers
+
+A prognosis review forecasts. It does not explain, and it does not recommend a
+treatment.
+
+The distinction is easy to state and easy to violate in a discussion section.
+Our HER2 analysis found a summary hazard ratio of about 2.0. It is tempting to
+write that HER2 overexpression worsens survival, and that blocking it should
+therefore improve survival. The first clause is a causal claim the design cannot
+support. The second is a treatment claim that needs a randomised trial.
+
+Imagine a marker that is measured only in the sickest patients, because the test
+is ordered when a clinician is already worried. It will predict death beautifully
+and cause none of it. The forecast is correct and useful. The causal reading is
+wrong.
+
+What a prognosis review may say is narrower and still valuable: in people like
+these, at this startpoint, over this horizon, those with the factor fare worse,
+by about this much, in most settings. Chapter 5 returns to the sentences that
+stay inside that boundary and the ones that stray outside it.
+
+## Where the data comes from
+
+Prognosis studies are observational, and the handbook ranks the designs that feed
+them [@cochrane-prognosis-ch2].
+
+The **prospective cohort** is the ideal. The startpoint is defined in advance,
+the predictors are measured before the outcome, and the follow-up is planned.
+**Retrospective cohorts** are common and usable; the data were recorded for some
+other purpose, so the startpoint is reconstructed rather than designed.
+
+Arms of **randomised trials** are prospective cohorts with a randomised
+startpoint. They give clean outcomes and a narrow case mix, which is a strength
+for measurement and a weakness for generalisation. **Nested case-control** and
+**case-cohort** designs sample efficiently within an existing cohort, and their
+estimates are relative ones; absolute risks require reweighting back to the
+source cohort before they mean anything.
+
+Finally, **routine data**, meaning electronic health records and registries,
+increasingly carries prognosis research. The case mix is the real one, which is
+the point, and the measurement is whatever clinical practice happened to record,
+which is the cost.
+
+```{r}
+#| label: tbl-designs
+#| tbl-cap: "What our two examples are made of."
+knitr::kable(data.frame(
+  Example = c("HER2 in endometrial cancer", "EuroSCORE II"),
+  Type = c("Prognostic factor", "Prediction model"),
+  Studies = c(nrow(her2), nrow(euro)),
+  Participants = c(sum(her2$N), sum(euro$n)),
+  Startpoint = c("Diagnosis", "Cardiac surgery"),
+  Horizon = c("Survival", "30 days")
+))
+```
+
+We see that the two reviews differ in every column, and the one that matters most
+is the last. A thirty-day horizon and a survival curve are not interchangeable,
+and the pooled estimate inherits the horizon of the studies that produced it.
+
+## The measures you will meet
+
+Each type brings its own statistics, and reading them is most of the work of
+Chapter 4. Here we only name them, so that the examples in the next chapters are
+not a surprise.
+
+Overall prognosis is reported as a **cumulative incidence**, the probability of
+the outcome by a time point, or as an **incidence rate**, events per person-time.
+Prognostic factors are reported as a **hazard ratio** for time-to-event outcomes,
+or a risk or odds ratio for a binary outcome by a fixed time.
+
+Prediction models are reported with four kinds of number. **Calibration** asks
+whether predicted risks match observed ones, and its headline summary is the
+**observed-to-expected ratio**, written O:E. **Discrimination** asks whether
+patients who had the outcome received higher predictions than those who did not,
+and is summarised by the **c-statistic**, which equals the area under the ROC
+curve. **Overall fit** combines the two, and **clinical utility** asks whether
+using the model to make decisions does more good than harm.
+
+Let us look at the calibration of EuroSCORE II, because it carries the lesson of
+the whole chapter.
+
+```{r}
+#| label: fig-oe
+#| fig-cap: "Calibration of EuroSCORE II across 23 cohorts: observed deaths over expected deaths, pooled on the log scale. The reference line at 1 is perfect agreement."
+#| fig-width: 9
+#| fig-height: 6
+euro$loe   <- log(euro$Po / euro$Pe)
+euro$seloe <- sqrt((1 - euro$Po) / (euro$n * euro$Po))
+
+m_oe <- metagen(loe, seloe, studlab = Study, data = euro, sm = "OE",
+                method.tau = "REML", method.random.ci = "HK",
+                prediction = TRUE)
+
+forest(m_oe, layout = "RevMan5", common = FALSE,
+       leftcols = c("studlab", "n", "effect.ci"),
+       leftlabs = c("Study", "n", "O:E [95% CI]"),
+       prediction = TRUE, ref = 1, col.diamond = "black")
+```
+
+```{r}
+round(exp(c(OE = m_oe$TE.random,
+            lower = m_oe$lower.random,
+            upper = m_oe$upper.random,
+            PI.lower = m_oe$lower.predict,
+            PI.upper = m_oe$upper.predict)), 2)
+```
+
+The summary O:E is about 1.1, and perfect calibration sits inside its confidence
+interval. On average the model slightly underestimates risk. Now read the last
+two numbers. The 95% **prediction interval** is far wider, which says that in a
+new hospital the model may predict considerably more deaths than occur, or
+considerably fewer.
+
+That gap between a reassuring average and an alarming range is the single most
+important habit this book will try to build. The handbook makes the same point
+with the same data [@cochrane-prognosis-ch11].
+
+## What the published examples look like
+
+Both of our examples are ordinary published reviews, and it is worth seeing what
+each one had to decide.
+
+@zhang2015 asked whether hormone receptors predict survival in endometrial
+cancer. The team had to standardise the direction of every hazard ratio, because
+studies compare positive against negative in whichever order suits their
+narrative, and they had to decide what to do with studies that reported only an
+unadjusted estimate. Twenty studies with usable numbers survived that process.
+
+@guida2014 asked how EuroSCORE II performs outside the data it was built on. The
+team had to find validations that reported enough to compute both discrimination
+and calibration, which is a stricter filter than it sounds: a validation that
+prints only a c-statistic can enter the discrimination analysis and nothing else.
+
+The handbook adds a third kind of example that every reviewer should read once.
+In the living review of covid-19 prediction models by Wynants and colleagues,
+almost every model identified was judged at high risk of bias
+[@cochrane-prognosis-ch11]. A review can be executed perfectly and still conclude
+that the evidence cannot be used. That is a result, and Chapter 5 shows how to
+report it.
+
+## Should you use it?
+
+Let us end where a project actually starts, with three questions in order.
+
+**Is the question a prognosis question?** If the answer names a treatment and a
+comparator, it is an intervention review. If it names a test and a target
+condition at the same moment, it is a diagnostic accuracy review. If it names a
+population, a startpoint, a horizon and an outcome, it belongs here.
+
+**Which of the three types is it?** Average outcome, one factor, or a whole
+model. The rest of the book branches on this answer.
+
+**Do the published studies report what the method needs?** This is the viability
+question, and it is the subject of Chapter 2. A hazard ratio without a confidence
+interval, a c-statistic without a sample size, a model validation that reports
+only a p-value: each of these costs a study, and enough of them cost the review.
+
+::: {.callout-note appearance="simple"}
+**Test your knowledge!**
+
+1. A review pools the proportion of patients still unable to work twelve months
+   after a back injury. Which of the three types is it?
+2. Why is the adjusted estimate usually of more interest than the crude one in a
+   prognostic factor review?
+3. A model validation reports a c-statistic of 0.82 and an O:E of 1.9. What is
+   good about the model, and what is wrong with it?
+4. The summary O:E of a model is close to 1 but its 95% prediction interval runs
+   from 0.46 to 2.76. A hospital asks whether it may use the model. What do you
+   tell them?
+
+Answers to these questions are listed in Appendix A.
+:::
+
+## Summary
+
+- A prognosis review forecasts a future outcome from a defined startpoint over a
+  defined prediction horizon. Those two anchors decide which studies answer the
+  same question.
+- Prognosis research comes in three types: overall prognosis, prognostic factors
+  and prediction models. The type decides eligibility, extraction, appraisal and
+  reporting, so it is settled before anything else.
+- The arithmetic is standard inverse-variance meta-analysis. What is specific to
+  prognosis is the scale each measure is pooled on, and the meaning of the rows.
+- Prediction is not explanation. A factor earns its place by forecasting, and no
+  causal or treatment claim follows from a prognosis review.
+- An average is not enough. The prediction interval tells us what to expect in a
+  new setting, and for EuroSCORE II it is wide where the average looked calm.
 
 {{< include _cta.qmd >}}
