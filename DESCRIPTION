@@ -1,13 +1,13 @@
 Package: easyPR
 Title: Prognostic Meta-Analysis, Made Teachable
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R: 
     person("Vanio", "Antunes", email = "vanio.antunes.md@gmail.com",
            role = c("aut", "cre"))
 Description: A front end for the meta-analysis of a prognostic model's
     performance, argued like the 'meta' package. One call takes a table of
-    external validations and a measure, either "cstat" for discrimination or
-    "OE" for calibration, works out each study's estimate and standard error
+    external validations and a measure, "cstat" for discrimination or "OE",
+    "citl" and "slope" for calibration, works out each study's estimate and standard error
     from whatever it reported, pools them, and returns the pooled performance
     with its heterogeneity and prediction interval. Companion plots cover a
     forest of the validations, leave-one-out, meta-regression on study-level
@@ -24,7 +24,6 @@ Imports:
     metafor,
     ggplot2,
     gridExtra,
-    scales,
     grid,
     stats,
     utils,
@@ -36,3 +35,4 @@ LazyData: true
 Config/testthat/edition: 3
 URL: https://github.com/vanioljantunes/easyPR, https://vanioljantunes.github.io/easyPR/
 BugReports: https://github.com/vanioljantunes/easyPR/issues
+Config/roxygen2/version: 8.0.0

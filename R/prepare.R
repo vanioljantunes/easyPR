@@ -46,8 +46,28 @@ PR_SM <- list(
                what = "validation", cols = c(N = "N", Events = "O")),
   OE    = list(kind = "OE",    label = "O:E ratio", unit = "O:E",
                scale = "log",   null = 1,
-               what = "validation", cols = c(Observed = "O", Expected = "E"))
+               what = "validation", cols = c(Observed = "O", Expected = "E")),
+  slope = list(kind = "slope", label = "calibration slope", unit = "slope",
+               scale = "identity", null = 1,
+               what = "validation", cols = c(N = "N", Events = "O")),
+  citl  = list(kind = "citl",  label = "calibration-in-the-large",
+               unit = "CITL", scale = "identity", null = 0,
+               what = "validation", cols = c(N = "N", Events = "O"))
 )
+
+# Calibration slope and calibration-in-the-large are pooled as reported.
+#
+# Neither is bounded the way a c-statistic or a ratio is: a slope of 1 is a
+# model whose spread of risks is right, below 1 its predictions are too
+# extreme, above 1 too timid; an intercept of 0 is a model whose average risk
+# is right. Both already sit on a scale where a symmetric interval belongs, so
+# they go to metafor without a transformation (Snell, 2018; Meta-analysis of
+# prediction model performance across multiple studies; 10.1177/0962280217705678).
+
+#' Measures that reach metafor directly rather than through valmeta
+#' @keywords internal
+#' @noRd
+PR_LINEAR <- c("slope", "citl")
 
 #' The summary measures easypr() accepts
 #' @keywords internal
@@ -65,8 +85,9 @@ pr_sm <- function(sm) {
   if (length(hit) == 0L) {
     pr_stop("`sm = \"", sm, "\"` is not a measure easyPR pools. Use one of: ",
             paste(PR_SM_NAMES, collapse = ", "), ". \"HR\", \"OR\" and ",
-            "\"RR\" pool a prognostic factor; \"cstat\" and \"OE\" pool a ",
-            "model's discrimination and its calibration.")
+            "\"RR\" pool a prognostic factor; \"cstat\" pools a model's ",
+            "discrimination; \"OE\", \"citl\" and \"slope\" pool its ",
+            "calibration.")
   }
   c(PR_SM[[hit]], list(sm = hit))
 }
@@ -116,7 +137,9 @@ PR_COLS <- list(
             "sd.LP"),
   OE    = c("OE", "OE.se", "OE.cilb", "OE.ciub", "N", "O", "E", "Po", "Pe",
             "citl", "citl.se"),
-  ratio = c("effect", "effect.se", "effect.cilb", "effect.ciub", "N", "O")
+  ratio = c("effect", "effect.se", "effect.cilb", "effect.ciub", "N", "O"),
+  slope = c("slope", "slope.se", "slope.cilb", "slope.ciub", "N", "O"),
+  citl  = c("citl", "citl.se", "citl.cilb", "citl.ciub", "N", "O")
 )
 
 #' Build the per-study table for one summary measure
@@ -132,6 +155,7 @@ pr_prepare <- function(data, sm, studlab = NULL) {
   spec <- pr_sm(sm)
   data <- pr_map(data, spec)
   if (spec$kind == "ratio") return(pr_prepare_ratio(data, spec, studlab))
+  if (spec$kind %in% PR_LINEAR) return(pr_prepare_linear(data, spec, studlab))
 
   have <- intersect(PR_COLS[[spec$kind]], names(data))
   if (length(have) == 0L) {
@@ -265,8 +289,16 @@ PR_ALIAS <- list(
   E          = c("E", "e.events", "expected"),
   Po         = c("Po", "po", "prop.observed"),
   Pe         = c("Pe", "pe", "prop.expected"),
-  citl       = c("citl", "CITL"),
-  citl.se    = c("citl.se", "se.citl"),
+  citl       = c("citl", "CITL", "cal.intercept", "calibration.intercept"),
+  citl.se    = c("citl.se", "se.citl", "citl_se"),
+  citl.cilb  = c("citl.cilb", "citl_lb", "citl.lb", "citl.lower", "CITL.025"),
+  citl.ciub  = c("citl.ciub", "citl_ub", "citl.ub", "citl.upper", "CITL.975"),
+  slope      = c("slope", "cal.slope", "calibration.slope", "cslope"),
+  slope.se   = c("slope.se", "se.slope", "slope_se"),
+  slope.cilb = c("slope.cilb", "slope_lb", "slope.lb", "slope.lower",
+                 "slope.025"),
+  slope.ciub = c("slope.ciub", "slope_ub", "slope.ub", "slope.upper",
+                 "slope.975"),
   sd.LP      = c("sd.LP", "sdLP", "sd.lp"),
   effect     = c("effect", "HR", "hr", "OR", "or", "RR", "rr", "ratio",
                  "estimate", "TE"),
@@ -381,5 +413,60 @@ pr_prepare_ratio <- function(data, spec, studlab) {
     pr_stop("no study has both a ", spec$label, " and something to get its ",
             "standard error from.")
   }
+  tab[usable, , drop = FALSE]
+}
+
+
+# A calibration measure pooled as reported.
+#
+# The interval a paper prints around a slope or an intercept is symmetric on
+# the scale it is printed on, so the standard error is half its width over
+# 1.96, with no logarithm in between.
+
+#' @keywords internal
+#' @noRd
+pr_prepare_linear <- function(data, spec, studlab) {
+  k    <- spec$kind
+  slab <- pr_slab(data, studlab)
+  col  <- function(nm) {
+    v <- data[[nm]]
+    if (is.null(v) || length(v) == 0L) rep(NA_real_, nrow(data))
+    else suppressWarnings(as.numeric(v))
+  }
+  est <- col(k)
+  if (all(is.na(est))) {
+    pr_stop("sm = \"", spec$sm, "\" needs a column holding the ", spec$label,
+            " itself. Recognised spellings: ",
+            paste(PR_ALIAS[[k]], collapse = ", "), ".")
+  }
+  se <- col(paste0(k, ".se"))
+  lo <- col(paste0(k, ".cilb"))
+  hi <- col(paste0(k, ".ciub"))
+  from_ci <- (hi - lo) / (2 * stats::qnorm(0.975))
+  se[is.na(se)] <- from_ci[is.na(se)]
+  if (all(is.na(se))) {
+    pr_stop("every ", spec$what, " is missing both a standard error and a ",
+            "confidence interval for the ", spec$label, ", so there is ",
+            "nothing to weight them by. Recognised interval columns: ",
+            paste(c(PR_ALIAS[[paste0(k, ".cilb")]],
+                    PR_ALIAS[[paste0(k, ".ciub")]]), collapse = ", "), ".")
+  }
+  lo[is.na(lo)] <- (est - stats::qnorm(0.975) * se)[is.na(lo)]
+  hi[is.na(hi)] <- (est + stats::qnorm(0.975) * se)[is.na(hi)]
+
+  tab <- data.frame(studlab = as.character(slab), est = est, se = se,
+                    lower = lo, upper = hi, stringsAsFactors = FALSE)
+  tab <- pr_side_columns(tab, data, spec)
+  usable <- is.finite(tab$est) & is.finite(tab$se) & tab$se > 0
+  if (!any(usable)) {
+    pr_stop("no ", spec$what, " has both a ", spec$label, " and something ",
+            "to get its standard error from.")
+  }
+  if (any(!usable)) {
+    message("easypr: ", sum(!usable), " of ", nrow(tab), " ",
+            pr_plural(spec$what), " could not be used, because the ",
+            spec$label, " or its interval is missing.")
+  }
+  attr(tab, "dropped") <- tab$studlab[!usable]
   tab[usable, , drop = FALSE]
 }

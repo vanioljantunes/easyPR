@@ -17,3 +17,8 @@
 #'
 #' @keywords internal
 "_PACKAGE"
+
+# Column names used inside ggplot2::aes() and subset(), which R CMD check
+# otherwise reports as undefined globals.
+utils::globalVariables(c(".data", "est", "hi", "level", "lo", "se", "sei",
+                         "w", "yi"))

@@ -69,7 +69,7 @@ scale you were on.
 
 ![The call, its arguments, and the columns each sm puts in the forest](man/figures/api.png)
 
-`sm` takes five values. Three of them pool a prognostic factor and two pool a
+`sm` takes seven values. Three of them pool a prognostic factor and four pool a
 model's performance.
 
 | `sm` | The question it answers | Pooled on |
@@ -77,6 +77,20 @@ model's performance.
 | `"HR"`, `"OR"`, `"RR"` | How much does this factor shift risk? | log, read back as a ratio |
 | `"cstat"` | Does the model rank patients correctly? | logit, read back as a c-statistic |
 | `"OE"` | Are the risks it quotes the risks that happen? | log, read back as a ratio |
+| `"citl"` | Is the model's average risk right? (0 is right) | as reported |
+| `"slope"` | Is the spread of its risks right? (1 is right) | as reported |
+
+Calibration is never one number. Pool `"slope"` together with `"OE"` or
+`"citl"`, and show the calibration plots beside them. The bundled `dejong`
+data, eight covid-19 mortality models validated across hospitals and
+countries (de Jong, 2022; 10.1136/bmj-2021-069881), carry all four
+performance measures per validation:
+
+```r
+xie <- subset(dejong, model == "Xie")
+easypr(xie, sm = "slope")
+easypr(xie, sm = "citl")
+```
 
 Estimation is delegated to **{metamisc}** (Debray and de Jong) and
 **{metafor}** (Viechtbauer), which easyPR calls and never second-guesses.

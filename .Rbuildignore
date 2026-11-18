@@ -1,0 +1,9 @@
+^data-raw$
+^book$
+^tutorial$
+^Rplots\.pdf$
+^\.github$
+^\.nojekyll$
+^\.tmp-render$
+^LICENSE$
+^LICENSE-text\.md$

@@ -53,12 +53,19 @@ pr_reading <- function(x) {
   base <- paste0("The confidence interval is about the average ", what, ". ",
                  "The prediction interval is what a new ", x$what,
                  " should expect, and it is the one to quote.")
-  if (!wide) return(base)
+  if (x$measure %in% c("OE", "citl", "slope")) {
+    cal <- paste0(" One calibration measure is half the picture: report ",
+                  "the slope together with the O:E ratio or the ",
+                  "calibration-in-the-large, and the calibration plots.")
+  } else {
+    cal <- ""
+  }
+  if (!wide) return(paste0(base, cal))
   tail <- if (identical(x$measure, "ratio"))
     " Here it is much the wider of the two, so the effect is not settled: where the next study is run matters as much as the factor."
   else
     " Here it is much the wider of the two, so the model's performance is not settled: where it is next validated matters as much as the model."
-  paste0(base, tail)
+  paste0(base, tail, cal)
 }
 
 #' @export

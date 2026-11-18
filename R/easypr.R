@@ -12,6 +12,10 @@
 #' risks it quotes the risks that actually happen. Discrimination and
 #' calibration can point in different directions, and a review that reports
 #' only the first is quietly leaving out whether the numbers mean anything.
+#' `"citl"` and `"slope"` pool the other two calibration measures: the
+#' calibration-in-the-large (0 is right) and the calibration slope (1 is
+#' right). Report `"OE"` or `"citl"` together with `"slope"`, never one
+#' calibration measure on its own.
 #'
 #' The prediction interval is the one to read. A confidence interval says
 #' where the average sits; a prediction interval says what the next setting
@@ -27,8 +31,8 @@
 #'
 #' @param data A data frame, one row per study or per validation.
 #' @param sm The summary measure: `"HR"`, `"OR"` or `"RR"` for a prognostic
-#'   factor, `"cstat"` for a model's discrimination, `"OE"` for its
-#'   calibration.
+#'   factor, `"cstat"` for a model's discrimination, `"OE"`, `"citl"` or
+#'   `"slope"` for its calibration.
 #' @param studlab Column of `data` holding the study labels, or a vector of
 #'   them. Left alone, easyPR looks for a `Study` column.
 #' @param method Pooling method. `"Inverse"`, inverse-variance weighting, is
@@ -88,7 +92,7 @@ easypr <- function(data,
   tab  <- pr_prepare(data, spec$sm, studlab)
   slab <- pr_slab(data, studlab)
 
-  if (spec$kind == "ratio") {
+  if (spec$kind == "ratio" || spec$kind %in% PR_LINEAR) {
     fit <- metafor::rma(yi = tab$est, sei = tab$se, method = method.tau,
                         test = test, slab = tab$studlab, ...)
     return(pr_result_ratio(fit, tab, spec, method, method.tau, method.ci,
@@ -251,6 +255,14 @@ pr_i2 <- function(est, se, tau2) {
 pr_result_ratio <- function(fit, tab, spec, method, method.tau, method.ci,
                             level, common, data) {
   z   <- stats::qnorm(1 - (1 - level) / 2)
+  # A model's calibration is read beside its c-statistic, and valmeta builds
+  # that one's prediction interval on a t with k - 2 degrees of freedom when
+  # the Knapp-Hartung interval is asked for. The slope and the intercept use
+  # the same rule so the rows of a performance table are comparable.
+  k <- nrow(tab)
+  if (spec$kind %in% PR_LINEAR && identical(method.ci, "t") && k > 2L) {
+    z <- stats::qt(1 - (1 - level) / 2, df = k - 2L)
+  }
   mu  <- as.numeric(fit$b)
   pse <- sqrt(as.numeric(fit$tau2) + as.numeric(fit$se)^2)
   structure(c(pr_common_fields(spec, method, method.tau, method.ci, level,
