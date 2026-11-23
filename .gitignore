@@ -1,3 +1,7 @@
 book/_book/
 book/.quarto/
 .quarto/
+
+# Claude Code files stay local
+.claude/
+CLAUDE.md
